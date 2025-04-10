@@ -2,6 +2,7 @@
 import React from "react";
 import { useUser } from "@/contexts/UserContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { ArrowDown, ArrowUp, CreditCard, Loader2, ShoppingCart, UserCheck, Utensils } from "lucide-react";
 
 const DashboardPage = () => {
