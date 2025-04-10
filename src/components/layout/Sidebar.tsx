@@ -31,31 +31,31 @@ export const Sidebar = () => {
       roles: ["admin", "waiter", "cashier", "kitchen"] 
     },
     { 
-      name: "Tables", 
+      name: "Mesas", 
       path: "/tables", 
       icon: <QrCode size={20} />, 
       roles: ["admin", "waiter"] 
     },
     { 
-      name: "Menu", 
+      name: "Cardápio", 
       path: "/menu", 
       icon: <Utensils size={20} />, 
       roles: ["admin", "customer", "waiter"] 
     },
     { 
-      name: "Orders", 
+      name: "Pedidos", 
       path: "/orders", 
       icon: <ClipboardList size={20} />, 
       roles: ["admin", "waiter", "kitchen", "cashier", "customer"] 
     },
     { 
-      name: "Inventory", 
+      name: "Estoque", 
       path: "/inventory", 
       icon: <Package size={20} />, 
       roles: ["admin"] 
     },
     { 
-      name: "Checkout", 
+      name: "Caixa", 
       path: "/checkout", 
       icon: <CreditCard size={20} />, 
       roles: ["admin", "cashier", "waiter"] 

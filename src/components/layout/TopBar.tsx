@@ -24,13 +24,25 @@ export const TopBar = () => {
       .toUpperCase();
   };
 
+  // Função para traduzir o nome da página
+  const getPageName = (path: string) => {
+    if (path === "/") return "Dashboard";
+    const pathMap: Record<string, string> = {
+      "/tables": "Mesas",
+      "/menu": "Cardápio",
+      "/orders": "Pedidos",
+      "/inventory": "Estoque",
+      "/checkout": "Caixa",
+      "/delivery": "Delivery"
+    };
+    return pathMap[path] || path.substring(1).charAt(0).toUpperCase() + path.substring(2);
+  };
+
   return (
     <div className="h-16 border-b border-border bg-background flex items-center justify-between px-4 md:px-6">
       <div>
         <h2 className="font-semibold text-lg">
-          {window.location.pathname === "/" ? "Dashboard" : 
-           window.location.pathname.substring(1).charAt(0).toUpperCase() + 
-           window.location.pathname.substring(2)}
+          {getPageName(window.location.pathname)}
         </h2>
       </div>
       
@@ -54,19 +66,23 @@ export const TopBar = () => {
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">{user?.name}</p>
                 <p className="text-xs leading-none text-muted-foreground capitalize">
-                  {user?.role}
+                  {user?.role === "admin" ? "Administrador" : 
+                   user?.role === "waiter" ? "Garçom" :
+                   user?.role === "kitchen" ? "Cozinha" :
+                   user?.role === "cashier" ? "Caixa" :
+                   user?.role === "customer" ? "Cliente" : user?.role}
                 </p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
+              <span>Configurações</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout}>
               <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
+              <span>Sair</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

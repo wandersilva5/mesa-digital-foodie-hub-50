@@ -13,6 +13,11 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import TablesPage from "./pages/TablesPage";
+import MenuPage from "./pages/MenuPage";
+import OrdersPage from "./pages/OrdersPage";
+import InventoryPage from "./pages/InventoryPage";
+import CheckoutPage from "./pages/CheckoutPage";
+import DeliveryPage from "./pages/DeliveryPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -71,7 +76,46 @@ const AppRoutes = () => {
             </RoleRoute>
           } 
         />
-        {/* TODO: Add more routes for other pages */}
+        <Route 
+          path="/menu" 
+          element={
+            <RoleRoute allowedRoles={["admin", "waiter", "customer"]}>
+              <MenuPage />
+            </RoleRoute>
+          } 
+        />
+        <Route 
+          path="/orders" 
+          element={
+            <RoleRoute allowedRoles={["admin", "waiter", "kitchen", "cashier", "customer"]}>
+              <OrdersPage />
+            </RoleRoute>
+          } 
+        />
+        <Route 
+          path="/inventory" 
+          element={
+            <RoleRoute allowedRoles={["admin"]}>
+              <InventoryPage />
+            </RoleRoute>
+          } 
+        />
+        <Route 
+          path="/checkout" 
+          element={
+            <RoleRoute allowedRoles={["admin", "cashier", "waiter"]}>
+              <CheckoutPage />
+            </RoleRoute>
+          } 
+        />
+        <Route 
+          path="/delivery" 
+          element={
+            <RoleRoute allowedRoles={["admin", "customer", "waiter", "kitchen"]}>
+              <DeliveryPage />
+            </RoleRoute>
+          } 
+        />
         {/* Catch-all route */}
         <Route path="*" element={<NotFound />} />
       </Route>
