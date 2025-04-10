@@ -18,6 +18,7 @@ import OrdersPage from "./pages/OrdersPage";
 import InventoryPage from "./pages/InventoryPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import DeliveryPage from "./pages/DeliveryPage";
+import UserManagementPage from "./pages/UserManagementPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -113,6 +114,14 @@ const AppRoutes = () => {
           element={
             <RoleRoute allowedRoles={["admin", "customer", "waiter", "kitchen"]}>
               <DeliveryPage />
+            </RoleRoute>
+          } 
+        />
+        <Route 
+          path="/users" 
+          element={
+            <RoleRoute allowedRoles={["admin"]}>
+              <UserManagementPage />
             </RoleRoute>
           } 
         />

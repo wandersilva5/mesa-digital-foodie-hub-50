@@ -7,13 +7,13 @@ import {
   LayoutDashboard, 
   Utensils, 
   ClipboardList, 
-  ShoppingCart, 
   Package, 
   CreditCard, 
   Truck,
   QrCode,
   Menu,
-  X
+  X,
+  Users
 } from "lucide-react";
 
 export const Sidebar = () => {
@@ -65,6 +65,12 @@ export const Sidebar = () => {
       path: "/delivery", 
       icon: <Truck size={20} />, 
       roles: ["admin", "customer", "waiter", "kitchen"] 
+    },
+    { 
+      name: "Usuários", 
+      path: "/users", 
+      icon: <Users size={20} />, 
+      roles: ["admin"] 
     },
   ];
   
