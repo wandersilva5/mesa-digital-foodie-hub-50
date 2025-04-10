@@ -1,113 +1,70 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useUser, UserRole } from "@/contexts/UserContext";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import { useUser } from "@/contexts/UserContext";
 import { Separator } from "@/components/ui/separator";
 import GoogleLoginButton from "@/components/auth/GoogleLoginButton";
+import { Loader2 } from "lucide-react";
 
 const LoginPage = () => {
-  const { login, users } = useUser();
+  const { login, isAuthenticated, user, loading } = useUser();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<UserRole>("customer");
-  const [loginType, setLoginType] = useState<"standard" | "email">("standard");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const handleLogin = (e: React.FormEvent) => {
+  // Redireciona o usuário com base no perfil após autenticação
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // Redireciona com base no perfil
+      switch (user.role) {
+        case "admin":
+          navigate("/");
+          break;
+        case "waiter":
+          navigate("/tables");
+          break;
+        case "cashier":
+          navigate("/checkout");
+          break;
+        case "kitchen":
+          navigate("/orders");
+          break;
+        case "customer":
+          navigate("/menu");
+          break;
+        default:
+          navigate("/");
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
+  
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (loginType === "standard") {
-      if (!username.trim()) {
-        toast({
-          title: "Erro",
-          description: "Por favor, insira seu nome",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      if (!role) {
-        toast({
-          title: "Erro",
-          description: "Por favor, selecione uma função",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Verifica se o usuário existe para funções diferentes de cliente
-      if (role !== "customer") {
-        const existingUser = users.find(
-          u => u.name.toLowerCase() === username.toLowerCase() && u.role === role
-        );
-        
-        if (!existingUser) {
-          toast({
-            title: "Erro",
-            description: "Usuário não encontrado com esta função. Apenas administradores podem criar novas contas.",
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        login(existingUser);
-        
-        toast({
-          title: "Sucesso",
-          description: `Logado como ${existingUser.name} (${role})`,
-        });
-      } else {
-        // Para clientes, permite login simplificado
-        login({
-          id: Math.random().toString(36).substring(2, 9),
-          name: username,
-          role: role,
-        });
-        
-        toast({
-          title: "Sucesso",
-          description: `Logado como ${username} (Cliente)`,
-        });
-      }
-    } else if (loginType === "email") {
-      if (!email.trim()) {
-        toast({
-          title: "Erro",
-          description: "Por favor, insira seu email",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Verificar o email contra a lista de usuários
-      const userByEmail = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-      
-      if (!userByEmail) {
-        toast({
-          title: "Erro",
-          description: "Email não encontrado. Entre em contato com o administrador.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      login(userByEmail);
-      
-      toast({
-        title: "Sucesso",
-        description: `Logado como ${userByEmail.name} (${userByEmail.role})`,
-      });
+    if (!email || !password) {
+      return;
     }
     
-    navigate("/");
+    try {
+      setIsSubmitting(true);
+      await login(email, password);
+      // Redirecionamento é feito no useEffect acima
+    } catch (error) {
+      // Erro tratado no contexto de usuário
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+  
+  // Se o usuário já estiver autenticado, não exibe a tela de login
+  if (isAuthenticated && !loading) {
+    return null;
+  }
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/40">
@@ -116,74 +73,53 @@ const LoginPage = () => {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">FoodieHub</CardTitle>
             <CardDescription className="text-center">
-              Digite seus dados para entrar na sua conta
+              Digite suas credenciais para acessar o sistema
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-4">
-              <div className="flex justify-center space-x-4 mb-2">
-                <Button
-                  type="button"
-                  variant={loginType === "standard" ? "default" : "outline"}
-                  onClick={() => setLoginType("standard")}
-                  className="w-full"
-                >
-                  Login padrão
-                </Button>
-                <Button
-                  type="button"
-                  variant={loginType === "email" ? "default" : "outline"}
-                  onClick={() => setLoginType("email")}
-                  className="w-full"
-                >
-                  Login por email
-                </Button>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
               </div>
               
-              {loginType === "standard" ? (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="username">Nome</Label>
-                    <Input
-                      id="username"
-                      placeholder="Digite seu nome"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Função</Label>
-                    <Select 
-                      value={role || ""} 
-                      onValueChange={(value) => setRole(value as UserRole)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione sua função" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Administrador</SelectItem>
-                        <SelectItem value="customer">Cliente</SelectItem>
-                        <SelectItem value="waiter">Garçom</SelectItem>
-                        <SelectItem value="cashier">Caixa</SelectItem>
-                        <SelectItem value="kitchen">Cozinha</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Digite seu email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Senha</Label>
                 </div>
-              )}
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Sua senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
               
-              <Button type="submit" className="w-full">Entrar</Button>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loading || isSubmitting}
+              >
+                {(loading || isSubmitting) ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Entrando...
+                  </>
+                ) : (
+                  "Entrar"
+                )}
+              </Button>
               
               <div className="relative my-2">
                 <div className="absolute inset-0 flex items-center">
