@@ -29,10 +29,10 @@ const GoogleLoginButton = () => {
     <Button 
       onClick={handleGoogleLogin} 
       variant="outline" 
-      className="w-full flex items-center justify-center gap-2 bg-white text-black hover:bg-gray-100 hover:text-black border-gray-300"
+      className="w-full flex items-center justify-center gap-2 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-800 border-gray-300 shadow-sm"
       disabled={loading}
     >
-      <Mail size={20} />
+      <Mail size={20} className="text-red-500" />
       <span>Entrar com Google</span>
     </Button>
   );
