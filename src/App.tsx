@@ -13,6 +13,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 
 // Pages
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage"; // Nova página
 import DashboardPage from "./pages/DashboardPage";
 import TablesPage from "./pages/TablesPage";
 import MenuPage from "./pages/MenuPage";
@@ -63,6 +64,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} /> {/* Nova rota */}
       <Route element={<AppLayout />}>
         {/* Protected routes */}
         <Route 
