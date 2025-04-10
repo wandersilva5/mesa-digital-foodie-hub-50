@@ -6,7 +6,8 @@ import {
   signInWithEmailAndPassword, 
   signInWithPopup, 
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  UserCredential
 } from "firebase/auth";
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { auth, googleProvider, db } from "@/lib/firebase";
@@ -177,12 +178,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      await signInWithPopup(auth, googleProvider);
       toast({
         title: "Sucesso",
         description: "Login com Google realizado com sucesso",
       });
-      return result;
     } catch (err) {
       console.error("Erro ao fazer login com Google:", err);
       setError((err as Error).message);
