@@ -21,6 +21,7 @@ import CheckoutPage from "./pages/CheckoutPage";
 import DeliveryPage from "./pages/DeliveryPage";
 import UserManagementPage from "./pages/UserManagementPage";
 import ConfiguracaoPage from "./pages/ConfiguracaoPage";
+import ConfiguracaoLanchonetePage from "./pages/ConfiguracaoLanchonetePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -132,6 +133,14 @@ const AppRoutes = () => {
           element={
             <RoleRoute allowedRoles={["admin"]}>
               <ConfiguracaoPage />
+            </RoleRoute>
+          } 
+        />
+        <Route 
+          path="/configuracao-lanchonete" 
+          element={
+            <RoleRoute allowedRoles={["admin"]}>
+              <ConfiguracaoLanchonetePage />
             </RoleRoute>
           } 
         />

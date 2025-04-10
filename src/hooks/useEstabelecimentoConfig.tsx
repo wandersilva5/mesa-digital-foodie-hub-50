@@ -9,6 +9,14 @@ export interface EstabelecimentoConfig {
   corPrimaria: string;
   corSecundaria: string;
   corAcento: string;
+  endereco?: string;
+  telefone?: string;
+  horarioFuncionamento?: string;
+  exibirTaxaServico?: boolean;
+  valorTaxaServico?: string;
+  permitirReservas?: boolean;
+  tempoEstimadoEntrega?: string;
+  raioEntrega?: string;
 }
 
 // Valores padrão
@@ -19,6 +27,14 @@ const defaultConfig: EstabelecimentoConfig = {
   corPrimaria: "#FF9800", // Laranja
   corSecundaria: "#4CAF50", // Verde
   corAcento: "#F44336", // Vermelho
+  endereco: "Av. Principal, 123 - Centro",
+  telefone: "(11) 98765-4321",
+  horarioFuncionamento: "Seg-Dom 10h às 22h",
+  exibirTaxaServico: true,
+  valorTaxaServico: "10",
+  permitirReservas: true,
+  tempoEstimadoEntrega: "30-45",
+  raioEntrega: "5"
 };
 
 // Contexto para compartilhar as configurações
@@ -68,6 +84,9 @@ export const EstabelecimentoConfigProvider = ({ children }: { children: React.Re
     // Converte as cores hex para HSL e aplica às variáveis CSS
     if (configToApply.corPrimaria) {
       root.style.setProperty('--primary', hexToHSL(configToApply.corPrimaria));
+      root.style.setProperty('--sidebar-primary', hexToHSL(configToApply.corPrimaria));
+      root.style.setProperty('--ring', hexToHSL(configToApply.corPrimaria));
+      root.style.setProperty('--sidebar-ring', hexToHSL(configToApply.corPrimaria));
     }
     
     if (configToApply.corSecundaria) {

@@ -14,6 +14,7 @@ import {
   Users,
   Settings,
   Menu,
+  Store,
 } from "lucide-react";
 import { useMobile } from "@/hooks/use-mobile"; 
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,12 @@ export const Sidebar = () => {
       name: "Configuração",
       path: "/configuracao",
       icon: <Settings className="h-5 w-5" />,
+      roles: ["admin"],
+    },
+    {
+      name: "Config. Lanchonete",
+      path: "/configuracao-lanchonete",
+      icon: <Store className="h-5 w-5" />,
       roles: ["admin"],
     },
   ];
