@@ -1,155 +1,131 @@
 
-import { useState, useEffect, createContext, useContext } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useFirebase } from "@/contexts/FirebaseContext";
+import { useToast } from "@/components/ui/use-toast";
 
-// Interface para as configurações do estabelecimento
 export interface EstabelecimentoConfig {
   nome: string;
   slogan: string;
   logoUrl: string;
-  corPrimaria: string;
-  corSecundaria: string;
-  corAcento: string;
-  endereco?: string;
-  telefone?: string;
-  horarioFuncionamento?: string;
-  exibirTaxaServico?: boolean;
-  valorTaxaServico?: string;
-  permitirReservas?: boolean;
-  tempoEstimadoEntrega?: string;
-  raioEntrega?: string;
+  cores: {
+    primary: string;
+    secondary: string;
+    accent: string;
+  };
 }
 
-// Valores padrão
-const defaultConfig: EstabelecimentoConfig = {
-  nome: "Sabor Express",
-  slogan: "O melhor sabor da cidade!",
-  logoUrl: "",
-  corPrimaria: "#FF9800", // Laranja
-  corSecundaria: "#4CAF50", // Verde
-  corAcento: "#F44336", // Vermelho
-  endereco: "Av. Principal, 123 - Centro",
-  telefone: "(11) 98765-4321",
-  horarioFuncionamento: "Seg-Dom 10h às 22h",
-  exibirTaxaServico: true,
-  valorTaxaServico: "10",
-  permitirReservas: true,
-  tempoEstimadoEntrega: "30-45",
-  raioEntrega: "5"
-};
-
-// Contexto para compartilhar as configurações
-const EstabelecimentoConfigContext = createContext<{
+interface EstabelecimentoConfigContextType {
   config: EstabelecimentoConfig;
   updateConfig: (newConfig: Partial<EstabelecimentoConfig>) => void;
-}>({
-  config: defaultConfig,
-  updateConfig: () => {}
-});
+  saveConfig: () => Promise<void>;
+  uploadLogo: (file: File) => Promise<void>;
+  loading: boolean;
+}
 
-// Provider para o contexto
-export const EstabelecimentoConfigProvider = ({ children }: { children: React.ReactNode }) => {
+const defaultConfig: EstabelecimentoConfig = {
+  nome: "Sabor Express",
+  slogan: "O melhor sabor da cidade",
+  logoUrl: "",
+  cores: {
+    primary: "#10b981",
+    secondary: "#3b82f6",
+    accent: "#8b5cf6",
+  }
+};
+
+const EstabelecimentoConfigContext = createContext<EstabelecimentoConfigContextType | undefined>(undefined);
+
+export const EstabelecimentoConfigProvider = ({ children }: { children: ReactNode }) => {
   const [config, setConfig] = useState<EstabelecimentoConfig>(defaultConfig);
-  
-  // Carrega configurações do localStorage ao iniciar
+  const [loading, setLoading] = useState(true);
+  const { saveEstabelecimentoConfig, getEstabelecimentoConfig, uploadLogo: uploadLogoToFirebase, error } = useFirebase();
+  const { toast } = useToast();
+
   useEffect(() => {
-    const savedConfig = localStorage.getItem("estabelecimentoConfig");
-    if (savedConfig) {
+    // Load config from Firebase on mount
+    const loadConfig = async () => {
       try {
-        setConfig({ ...defaultConfig, ...JSON.parse(savedConfig) });
-      } catch (error) {
-        console.error("Erro ao carregar configurações:", error);
+        const data = await getEstabelecimentoConfig();
+        setConfig(data);
+      } catch (err) {
+        console.error("Failed to load config:", err);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar as configurações do estabelecimento",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
       }
-    }
-    
-    // Aplicar cores ao CSS
-    applyColorsToCssVariables(config);
+    };
+
+    loadConfig();
   }, []);
-  
-  // Atualiza as configurações
+
   const updateConfig = (newConfig: Partial<EstabelecimentoConfig>) => {
-    const updatedConfig = { ...config, ...newConfig };
-    setConfig(updatedConfig);
-    
-    // Salva no localStorage
-    localStorage.setItem("estabelecimentoConfig", JSON.stringify(updatedConfig));
-    
-    // Aplica as cores ao CSS
-    applyColorsToCssVariables(updatedConfig);
+    setConfig(currentConfig => ({
+      ...currentConfig,
+      ...newConfig,
+    }));
   };
-  
-  // Aplica as cores às variáveis CSS
-  const applyColorsToCssVariables = (configToApply: EstabelecimentoConfig) => {
-    const root = document.documentElement;
-    
-    // Converte as cores hex para HSL e aplica às variáveis CSS
-    if (configToApply.corPrimaria) {
-      root.style.setProperty('--primary', hexToHSL(configToApply.corPrimaria));
-      root.style.setProperty('--sidebar-primary', hexToHSL(configToApply.corPrimaria));
-      root.style.setProperty('--ring', hexToHSL(configToApply.corPrimaria));
-      root.style.setProperty('--sidebar-ring', hexToHSL(configToApply.corPrimaria));
-    }
-    
-    if (configToApply.corSecundaria) {
-      root.style.setProperty('--secondary', hexToHSL(configToApply.corSecundaria));
-    }
-    
-    if (configToApply.corAcento) {
-      root.style.setProperty('--accent', hexToHSL(configToApply.corAcento));
+
+  const saveConfig = async () => {
+    setLoading(true);
+    try {
+      await saveEstabelecimentoConfig(config);
+      toast({
+        title: "Sucesso",
+        description: "Configurações salvas com sucesso",
+      });
+    } catch (err) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar as configurações",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
-  
+
+  const uploadLogo = async (file: File) => {
+    try {
+      const url = await uploadLogoToFirebase(file);
+      if (url) {
+        updateConfig({ logoUrl: url });
+        toast({
+          title: "Sucesso",
+          description: "Logo enviado com sucesso",
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível enviar o logo",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
-    <EstabelecimentoConfigContext.Provider value={{ config, updateConfig }}>
+    <EstabelecimentoConfigContext.Provider
+      value={{
+        config,
+        updateConfig,
+        saveConfig,
+        uploadLogo,
+        loading,
+      }}
+    >
       {children}
     </EstabelecimentoConfigContext.Provider>
   );
 };
 
-// Hook para usar as configurações
 export const useEstabelecimentoConfig = () => {
   const context = useContext(EstabelecimentoConfigContext);
-  if (!context) {
-    throw new Error("useEstabelecimentoConfig deve ser usado dentro de EstabelecimentoConfigProvider");
+  if (context === undefined) {
+    throw new Error("useEstabelecimentoConfig must be used within an EstabelecimentoConfigProvider");
   }
   return context;
 };
-
-// Função para converter hex para HSL
-function hexToHSL(hex: string): string {
-  // Remove o # se presente
-  hex = hex.replace(/^#/, '');
-  
-  // Converte hex para RGB
-  let r = parseInt(hex.substring(0, 2), 16) / 255;
-  let g = parseInt(hex.substring(2, 4), 16) / 255;
-  let b = parseInt(hex.substring(4, 6), 16) / 255;
-  
-  // Encontrar maior e menor valores
-  let max = Math.max(r, g, b);
-  let min = Math.min(r, g, b);
-  
-  // Calcula lightness
-  let l = (max + min) / 2;
-  
-  let h = 0;
-  let s = 0;
-  
-  if (max !== min) {
-    // Calcula saturation
-    s = l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min);
-    
-    // Calcula hue
-    if (max === r) {
-      h = (g - b) / (max - min) + (g < b ? 6 : 0);
-    } else if (max === g) {
-      h = (b - r) / (max - min) + 2;
-    } else {
-      h = (r - g) / (max - min) + 4;
-    }
-    
-    h = h * 60;
-  }
-  
-  // Converte para string no formato "H S% L%"
-  return `${Math.round(h)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
-}
