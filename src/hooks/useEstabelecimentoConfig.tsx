@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useFirebase } from "@/contexts/FirebaseContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -12,6 +11,17 @@ export interface EstabelecimentoConfig {
     secondary: string;
     accent: string;
   };
+  corPrimaria: string;
+  corSecundaria: string;
+  corAcento: string;
+  endereco: string;
+  telefone: string;
+  horarioFuncionamento: string;
+  exibirTaxaServico: boolean;
+  valorTaxaServico: string;
+  permitirReservas: boolean;
+  tempoEstimadoEntrega: string;
+  raioEntrega: string;
 }
 
 interface EstabelecimentoConfigContextType {
@@ -30,7 +40,18 @@ const defaultConfig: EstabelecimentoConfig = {
     primary: "#10b981",
     secondary: "#3b82f6",
     accent: "#8b5cf6",
-  }
+  },
+  corPrimaria: "#FF9800",
+  corSecundaria: "#4CAF50",
+  corAcento: "#F44336",
+  endereco: "",
+  telefone: "",
+  horarioFuncionamento: "",
+  exibirTaxaServico: true,
+  valorTaxaServico: "10",
+  permitirReservas: true,
+  tempoEstimadoEntrega: "30-45",
+  raioEntrega: "5"
 };
 
 const EstabelecimentoConfigContext = createContext<EstabelecimentoConfigContextType | undefined>(undefined);
@@ -42,7 +63,6 @@ export const EstabelecimentoConfigProvider = ({ children }: { children: ReactNod
   const { toast } = useToast();
 
   useEffect(() => {
-    // Load config from Firebase on mount
     const loadConfig = async () => {
       try {
         const data = await getEstabelecimentoConfig();

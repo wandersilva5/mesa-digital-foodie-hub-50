@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { collection, doc, getDoc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -13,6 +12,17 @@ interface EstabelecimentoConfig {
     secondary: string;
     accent: string;
   };
+  corPrimaria: string;
+  corSecundaria: string;
+  corAcento: string;
+  endereco: string;
+  telefone: string;
+  horarioFuncionamento: string;
+  exibirTaxaServico: boolean;
+  valorTaxaServico: string;
+  permitirReservas: boolean;
+  tempoEstimadoEntrega: string;
+  raioEntrega: string;
 }
 
 interface FirebaseContextType {
@@ -31,7 +41,18 @@ const defaultConfig: EstabelecimentoConfig = {
     primary: "#10b981",
     secondary: "#3b82f6",
     accent: "#8b5cf6",
-  }
+  },
+  corPrimaria: "#FF9800",
+  corSecundaria: "#4CAF50",
+  corAcento: "#F44336",
+  endereco: "",
+  telefone: "",
+  horarioFuncionamento: "",
+  exibirTaxaServico: true,
+  valorTaxaServico: "10",
+  permitirReservas: true,
+  tempoEstimadoEntrega: "30-45",
+  raioEntrega: "5"
 };
 
 const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined);
@@ -63,7 +84,6 @@ export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
       if (docSnap.exists()) {
         return docSnap.data() as EstabelecimentoConfig;
       } else {
-        // If no document exists, create default config
         await setDoc(docRef, defaultConfig);
         return defaultConfig;
       }
