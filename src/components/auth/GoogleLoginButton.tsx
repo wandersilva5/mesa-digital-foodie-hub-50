@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { useUser } from "@/contexts/UserContext";
 import { useNavigate } from "react-router-dom";
-import { Google } from "lucide-react";
+import { Mail } from "lucide-react"; // Substituímos Google por Mail
 
 const GoogleLoginButton = () => {
   const { login } = useUser();
@@ -38,7 +38,7 @@ const GoogleLoginButton = () => {
       variant="outline" 
       className="w-full flex items-center justify-center gap-2 bg-white text-black hover:bg-gray-100 hover:text-black border-gray-300"
     >
-      <Google size={20} />
+      <Mail size={20} />
       <span>Entrar com Google</span>
     </Button>
   );
