@@ -10,7 +10,7 @@ import { Edit, Eye, Plus, QrCode, Trash } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useUser } from "@/contexts/UserContext";
 
-// Mock initial tables data
+// Dados iniciais fictícios de mesas
 const initialTables = [
   { id: 1, number: 1, capacity: 4, occupied: true, orders: 2 },
   { id: 2, number: 2, capacity: 2, occupied: false, orders: 0 },
@@ -33,8 +33,8 @@ const TablesPage = () => {
   const handleAddTable = () => {
     if (!newTable.number || !newTable.capacity) {
       toast({
-        title: "Error",
-        description: "Please fill in all fields",
+        title: "Erro",
+        description: "Por favor, preencha todos os campos",
         variant: "destructive",
       });
       return;
@@ -45,8 +45,8 @@ const TablesPage = () => {
     
     if (tables.some(table => table.number === tableNumber)) {
       toast({
-        title: "Error",
-        description: "Table number already exists",
+        title: "Erro",
+        description: "Número de mesa já existe",
         variant: "destructive",
       });
       return;
@@ -66,8 +66,8 @@ const TablesPage = () => {
     setNewTable({ number: "", capacity: "" });
     
     toast({
-      title: "Success",
-      description: `Table ${tableNumber} has been added`,
+      title: "Sucesso",
+      description: `Mesa ${tableNumber} foi adicionada`,
     });
   };
   
@@ -79,8 +79,8 @@ const TablesPage = () => {
   const handleDeleteTable = (tableId: number) => {
     setTables(tables.filter(table => table.id !== tableId));
     toast({
-      title: "Success",
-      description: "Table has been deleted",
+      title: "Sucesso",
+      description: "Mesa foi excluída",
     });
   };
   
@@ -88,9 +88,9 @@ const TablesPage = () => {
     return (
       <Card className={`${table.occupied ? "border-l-4 border-l-primary" : ""}`}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Table {table.number}</CardTitle>
+          <CardTitle className="text-lg">Mesa {table.number}</CardTitle>
           <CardDescription>
-            {table.capacity} Seats
+            {table.capacity} Lugares
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -98,12 +98,12 @@ const TablesPage = () => {
             <div className="flex justify-between">
               <span>Status:</span>
               <span className={table.occupied ? "text-primary font-medium" : "text-green-500"}>
-                {table.occupied ? "Occupied" : "Available"}
+                {table.occupied ? "Ocupada" : "Disponível"}
               </span>
             </div>
             {table.occupied && (
               <div className="flex justify-between">
-                <span>Active Orders:</span>
+                <span>Pedidos Ativos:</span>
                 <span>{table.orders}</span>
               </div>
             )}
@@ -117,7 +117,7 @@ const TablesPage = () => {
             onClick={() => handleViewQr(table.id)}
           >
             <QrCode className="h-4 w-4 mr-2" />
-            QR Code
+            Código QR
           </Button>
           {isAdmin && (
             <Button 
@@ -127,7 +127,7 @@ const TablesPage = () => {
               onClick={() => handleDeleteTable(table.id)}
             >
               <Trash className="h-4 w-4 mr-2" />
-              Delete
+              Excluir
             </Button>
           )}
         </CardFooter>
@@ -139,8 +139,8 @@ const TablesPage = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tables Management</h1>
-          <p className="text-muted-foreground">Manage your restaurant tables and QR codes</p>
+          <h1 className="text-2xl font-bold tracking-tight">Gerenciamento de Mesas</h1>
+          <p className="text-muted-foreground">Gerencie as mesas do seu restaurante e códigos QR</p>
         </div>
         
         {isAdmin && (
@@ -148,32 +148,32 @@ const TablesPage = () => {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Table
+                Adicionar Mesa
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add New Table</DialogTitle>
+                <DialogTitle>Adicionar Nova Mesa</DialogTitle>
                 <DialogDescription>
-                  Add a new table to your restaurant configuration.
+                  Adicione uma nova mesa à configuração do seu restaurante.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="tableNumber">Table Number</Label>
+                  <Label htmlFor="tableNumber">Número da Mesa</Label>
                   <Input
                     id="tableNumber"
-                    placeholder="e.g. 7"
+                    placeholder="ex: 7"
                     type="number"
                     value={newTable.number}
                     onChange={(e) => setNewTable({ ...newTable, number: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="capacity">Seating Capacity</Label>
+                  <Label htmlFor="capacity">Capacidade de Lugares</Label>
                   <Input
                     id="capacity"
-                    placeholder="e.g. 4"
+                    placeholder="ex: 4"
                     type="number"
                     value={newTable.capacity}
                     onChange={(e) => setNewTable({ ...newTable, capacity: e.target.value })}
@@ -181,7 +181,7 @@ const TablesPage = () => {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleAddTable}>Add Table</Button>
+                <Button onClick={handleAddTable}>Adicionar Mesa</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -190,9 +190,9 @@ const TablesPage = () => {
       
       <Tabs defaultValue="all">
         <TabsList>
-          <TabsTrigger value="all">All Tables</TabsTrigger>
-          <TabsTrigger value="available">Available</TabsTrigger>
-          <TabsTrigger value="occupied">Occupied</TabsTrigger>
+          <TabsTrigger value="all">Todas as Mesas</TabsTrigger>
+          <TabsTrigger value="available">Disponíveis</TabsTrigger>
+          <TabsTrigger value="occupied">Ocupadas</TabsTrigger>
         </TabsList>
         <TabsContent value="all" className="mt-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -217,13 +217,13 @@ const TablesPage = () => {
         </TabsContent>
       </Tabs>
       
-      {/* QR Code Dialog */}
+      {/* Dialog do Código QR */}
       <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Table {tables.find(t => t.id === selectedTable)?.number} QR Code</DialogTitle>
+            <DialogTitle>Código QR da Mesa {tables.find(t => t.id === selectedTable)?.number}</DialogTitle>
             <DialogDescription>
-              Print this QR code and place it on the table for customers to scan.
+              Imprima este código QR e coloque-o na mesa para os clientes escanearem.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center py-6">
@@ -234,8 +234,8 @@ const TablesPage = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline">Download</Button>
-            <Button>Print</Button>
+            <Button variant="outline">Baixar</Button>
+            <Button>Imprimir</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

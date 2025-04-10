@@ -15,12 +15,12 @@ const Index = () => {
     }
   }, [isAuthenticated, navigate]);
   
-  // This is just a loading state while the redirection happens
+  // Este é apenas um estado de carregamento enquanto o redirecionamento acontece
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/40">
       <div className="text-center">
         <h1 className="text-2xl font-bold text-primary mb-2">FoodieHub</h1>
-        <p className="text-muted-foreground">Loading your restaurant management system...</p>
+        <p className="text-muted-foreground">Carregando seu sistema de gerenciamento de restaurante...</p>
       </div>
     </div>
   );

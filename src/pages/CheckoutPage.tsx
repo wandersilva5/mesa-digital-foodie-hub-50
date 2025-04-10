@@ -85,7 +85,7 @@ const CheckoutPage = () => {
     cardSales: 86.70,
     pixSales: 37.50,
     totalSales: 206.60,
-    expectedCash: 282.40, // opening + cash sales
+    expectedCash: 282.40, // abertura + vendas em dinheiro
     actualCash: 280.00, // valor que será contado no fim do dia
     difference: -2.40
   });

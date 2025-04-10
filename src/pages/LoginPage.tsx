@@ -20,8 +20,8 @@ const LoginPage = () => {
     e.preventDefault();
     if (!username.trim()) {
       toast({
-        title: "Error",
-        description: "Please enter your name",
+        title: "Erro",
+        description: "Por favor, insira seu nome",
         variant: "destructive",
       });
       return;
@@ -29,14 +29,14 @@ const LoginPage = () => {
     
     if (!role) {
       toast({
-        title: "Error",
-        description: "Please select a role",
+        title: "Erro",
+        description: "Por favor, selecione uma função",
         variant: "destructive",
       });
       return;
     }
     
-    // In a real app, this would be an actual authentication
+    // Em um app real, isso seria uma autenticação de verdade
     login({
       id: Math.random().toString(36).substring(2, 9),
       name: username,
@@ -44,8 +44,8 @@ const LoginPage = () => {
     });
     
     toast({
-      title: "Success",
-      description: `Logged in as ${username} (${role})`,
+      title: "Sucesso",
+      description: `Logado como ${username} (${role})`,
     });
     
     navigate("/");
@@ -58,41 +58,41 @@ const LoginPage = () => {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">FoodieHub</CardTitle>
             <CardDescription className="text-center">
-              Enter your details to sign in to your account
+              Digite seus dados para entrar na sua conta
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username">Name</Label>
+                <Label htmlFor="username">Nome</Label>
                 <Input
                   id="username"
-                  placeholder="Enter your name"
+                  placeholder="Digite seu nome"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
+                <Label htmlFor="role">Função</Label>
                 <Select 
                   value={role || ""} 
                   onValueChange={(value) => setRole(value as UserRole)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select your role" />
+                    <SelectValue placeholder="Selecione sua função" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="customer">Customer</SelectItem>
-                    <SelectItem value="waiter">Waiter</SelectItem>
-                    <SelectItem value="cashier">Cashier</SelectItem>
-                    <SelectItem value="kitchen">Kitchen</SelectItem>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="customer">Cliente</SelectItem>
+                    <SelectItem value="waiter">Garçom</SelectItem>
+                    <SelectItem value="cashier">Caixa</SelectItem>
+                    <SelectItem value="kitchen">Cozinha</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit" className="w-full">Sign In</Button>
+              <Button type="submit" className="w-full">Entrar</Button>
             </CardFooter>
           </form>
         </Card>

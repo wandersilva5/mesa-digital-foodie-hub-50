@@ -8,37 +8,37 @@ import { ArrowDown, ArrowUp, CreditCard, Loader2, ShoppingCart, UserCheck, Utens
 const DashboardPage = () => {
   const { user } = useUser();
   
-  // Stats cards based on user role
+  // Cards de estatísticas com base na função do usuário
   const getStatCards = () => {
     switch (user?.role) {
       case "admin":
         return (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard 
-              title="Today's Sales" 
-              value="$1,240.56" 
-              description="+12% from yesterday"
+              title="Vendas de Hoje" 
+              value="R$ 1.240,56" 
+              description="+12% em relação a ontem"
               icon={<CreditCard className="h-5 w-5 text-muted-foreground" />}
               trend="up"
             />
             <StatCard 
-              title="Active Orders" 
+              title="Pedidos Ativos" 
               value="32" 
-              description="4 pending preparation"
+              description="4 aguardando preparo"
               icon={<ShoppingCart className="h-5 w-5 text-muted-foreground" />}
               trend="none"
             />
             <StatCard 
-              title="Tables Occupied" 
+              title="Mesas Ocupadas" 
               value="8/12" 
-              description="66% occupancy rate"
+              description="66% de taxa de ocupação"
               icon={<Utensils className="h-5 w-5 text-muted-foreground" />}
               trend="up"
             />
             <StatCard 
-              title="Customers Served" 
+              title="Clientes Atendidos" 
               value="146" 
-              description="+8% from yesterday"
+              description="+8% em relação a ontem"
               icon={<UserCheck className="h-5 w-5 text-muted-foreground" />}
               trend="up"
             />
@@ -48,24 +48,24 @@ const DashboardPage = () => {
         return (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <StatCard 
-              title="Your Tables" 
+              title="Suas Mesas" 
               value="5" 
-              description="2 need attention"
+              description="2 precisam de atenção"
               icon={<Utensils className="h-5 w-5 text-muted-foreground" />}
               trend="none"
               alert
             />
             <StatCard 
-              title="Pending Orders" 
+              title="Pedidos Pendentes" 
               value="7" 
-              description="3 ready for delivery"
+              description="3 prontos para entrega"
               icon={<ShoppingCart className="h-5 w-5 text-muted-foreground" />}
               trend="none"
             />
             <StatCard 
-              title="Today's Service" 
+              title="Atendimentos Hoje" 
               value="24" 
-              description="Orders completed"
+              description="Pedidos completados"
               icon={<UserCheck className="h-5 w-5 text-muted-foreground" />}
               trend="up"
             />
@@ -75,24 +75,24 @@ const DashboardPage = () => {
         return (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <StatCard 
-              title="Orders Queue" 
+              title="Fila de Pedidos" 
               value="12" 
-              description="4 high priority"
+              description="4 alta prioridade"
               icon={<ShoppingCart className="h-5 w-5 text-muted-foreground" />}
               trend="up"
               alert
             />
             <StatCard 
-              title="In Preparation" 
+              title="Em Preparo" 
               value="5" 
-              description="Estimated 15 min"
+              description="Estimado 15 min"
               icon={<Loader2 className="h-5 w-5 text-muted-foreground" />}
               trend="none"
             />
             <StatCard 
-              title="Completed Today" 
+              title="Completados Hoje" 
               value="87" 
-              description="65 dine-in, 22 delivery"
+              description="65 no local, 22 delivery"
               icon={<UserCheck className="h-5 w-5 text-muted-foreground" />}
               trend="up"
             />
@@ -102,24 +102,24 @@ const DashboardPage = () => {
         return (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <StatCard 
-              title="Today's Sales" 
-              value="$1,240.56" 
-              description="+12% from yesterday"
+              title="Vendas de Hoje" 
+              value="R$ 1.240,56" 
+              description="+12% em relação a ontem"
               icon={<CreditCard className="h-5 w-5 text-muted-foreground" />}
               trend="up"
             />
             <StatCard 
-              title="Pending Checkouts" 
+              title="Pagamentos Pendentes" 
               value="5" 
-              description="Tables ready to pay"
+              description="Mesas prontas para pagar"
               icon={<ShoppingCart className="h-5 w-5 text-muted-foreground" />}
               trend="none"
               alert
             />
             <StatCard 
-              title="Completed Transactions" 
+              title="Transações Concluídas" 
               value="32" 
-              description="Today's processed payments"
+              description="Pagamentos processados hoje"
               icon={<UserCheck className="h-5 w-5 text-muted-foreground" />}
               trend="up"
             />
@@ -128,8 +128,8 @@ const DashboardPage = () => {
       default:
         return (
           <div className="text-center py-10">
-            <h3 className="text-lg font-medium">Welcome to FoodieHub!</h3>
-            <p className="text-muted-foreground mt-2">No data to display for this user role.</p>
+            <h3 className="text-lg font-medium">Bem-vindo ao FoodieHub!</h3>
+            <p className="text-muted-foreground mt-2">Não há dados para exibir para esta função de usuário.</p>
           </div>
         );
     }
@@ -137,50 +137,50 @@ const DashboardPage = () => {
   
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Welcome back, {user?.name}</h1>
-      <p className="text-muted-foreground">Here's an overview of your restaurant activities</p>
+      <h1 className="text-2xl font-bold tracking-tight">Bem-vindo de volta, {user?.name}</h1>
+      <p className="text-muted-foreground">Aqui está uma visão geral das atividades do seu restaurante</p>
       
       {getStatCards()}
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="col-span-2">
           <CardHeader>
-            <CardTitle>Recent Orders</CardTitle>
-            <CardDescription>Latest customer orders received</CardDescription>
+            <CardTitle>Pedidos Recentes</CardTitle>
+            <CardDescription>Últimos pedidos de clientes recebidos</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {["admin", "waiter", "kitchen", "cashier"].includes(user?.role as string) && (
                 <>
                   <OrderItem 
-                    table="Table 5" 
-                    items="2x Burger, 1x Fries, 2x Soda" 
-                    time="5 min ago" 
+                    table="Mesa 5" 
+                    items="2x Hambúrguer, 1x Batata Frita, 2x Refrigerante" 
+                    time="5 min atrás" 
                     status="pending" 
                   />
                   <OrderItem 
-                    table="Table 2" 
-                    items="1x Pizza, 2x Beer" 
-                    time="12 min ago" 
+                    table="Mesa 2" 
+                    items="1x Pizza, 2x Cerveja" 
+                    time="12 min atrás" 
                     status="preparing" 
                   />
                   <OrderItem 
-                    table="Table 8" 
-                    items="3x Pasta, 1x Salad, 3x Water" 
-                    time="18 min ago" 
+                    table="Mesa 8" 
+                    items="3x Macarrão, 1x Salada, 3x Água" 
+                    time="18 min atrás" 
                     status="ready" 
                   />
                   <OrderItem 
-                    table="Table 1" 
-                    items="2x Steak, 1x Wine" 
-                    time="25 min ago" 
+                    table="Mesa 1" 
+                    items="2x Filé, 1x Vinho" 
+                    time="25 min atrás" 
                     status="delivered" 
                   />
                 </>
               )}
               {user?.role === "customer" && (
                 <p className="text-center py-4 text-muted-foreground">
-                  Your order history will appear here
+                  Seu histórico de pedidos aparecerá aqui
                 </p>
               )}
             </div>
@@ -189,44 +189,44 @@ const DashboardPage = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common tasks for your role</CardDescription>
+            <CardTitle>Ações Rápidas</CardTitle>
+            <CardDescription>Tarefas comuns para sua função</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {user?.role === "admin" && (
                 <>
-                  <QuickAction label="Add new menu item" />
-                  <QuickAction label="Manage tables" />
-                  <QuickAction label="Inventory check" />
+                  <QuickAction label="Adicionar novo item ao menu" />
+                  <QuickAction label="Gerenciar mesas" />
+                  <QuickAction label="Verificar estoque" />
                 </>
               )}
               {user?.role === "waiter" && (
                 <>
-                  <QuickAction label="Check table status" />
-                  <QuickAction label="Create new order" />
-                  <QuickAction label="Process checkout" />
+                  <QuickAction label="Verificar status das mesas" />
+                  <QuickAction label="Criar novo pedido" />
+                  <QuickAction label="Processar fechamento" />
                 </>
               )}
               {user?.role === "kitchen" && (
                 <>
-                  <QuickAction label="View order queue" />
-                  <QuickAction label="Mark order as ready" />
-                  <QuickAction label="Update inventory" />
+                  <QuickAction label="Ver fila de pedidos" />
+                  <QuickAction label="Marcar pedido como pronto" />
+                  <QuickAction label="Atualizar estoque" />
                 </>
               )}
               {user?.role === "cashier" && (
                 <>
-                  <QuickAction label="Process payment" />
-                  <QuickAction label="View daily summary" />
-                  <QuickAction label="Close register" />
+                  <QuickAction label="Processar pagamento" />
+                  <QuickAction label="Ver resumo diário" />
+                  <QuickAction label="Fechar caixa" />
                 </>
               )}
               {user?.role === "customer" && (
                 <>
-                  <QuickAction label="View menu" />
-                  <QuickAction label="Track order" />
-                  <QuickAction label="Request assistance" />
+                  <QuickAction label="Ver cardápio" />
+                  <QuickAction label="Acompanhar pedido" />
+                  <QuickAction label="Solicitar atendimento" />
                 </>
               )}
             </div>
@@ -237,7 +237,7 @@ const DashboardPage = () => {
   );
 };
 
-// Stat Card Component
+// Componente de Card de Estatísticas
 const StatCard = ({ 
   title, 
   value, 
@@ -271,7 +271,7 @@ const StatCard = ({
   );
 };
 
-// Order Item Component
+// Componente de Item de Pedido
 const OrderItem = ({ 
   table, 
   items, 
@@ -292,14 +292,18 @@ const OrderItem = ({
       <div className="text-right">
         <p className="text-sm text-muted-foreground">{time}</p>
         <div className={`status-${status} inline-block mt-1`}>
-          {status.charAt(0).toUpperCase() + status.slice(1)}
+          {status === "pending" && "Pendente"}
+          {status === "preparing" && "Em preparo"}
+          {status === "ready" && "Pronto"}
+          {status === "delivered" && "Entregue"}
+          {status === "cancelled" && "Cancelado"}
         </div>
       </div>
     </div>
   );
 };
 
-// Quick Action Component
+// Componente de Ação Rápida
 const QuickAction = ({ label }: { label: string }) => {
   return (
     <Button variant="outline" className="w-full justify-start text-left">

@@ -493,75 +493,74 @@ const DeliveryPage = () => {
                         </Badge>
                       </div>
                       <div className="mt-2 text-sm text-muted-foreground">
-                        {driver.available 
-                          ? driver.currentDelivery 
-                            ? `Em entrega: Pedido #${driver.currentDelivery}` 
-                            : "Disponível" 
-                          : "Indisponível"}
+                        {driver.available ? 
+                          driver.currentDelivery ? 
+                          `Em entrega: #${driver.currentDelivery}` : 
+                          "Disponível" : 
+                          "Indisponível"
+                        }
                       </div>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
+            
+            <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Atribuir Entregador</DialogTitle>
+                  <DialogDescription>
+                    Selecione um entregador disponível para esta entrega.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <div className="space-y-4">
+                    {selectedDelivery && (
+                      <div className="text-sm">
+                        <div className="font-medium">Pedido #{selectedDelivery.orderId}</div>
+                        <div>{selectedDelivery.address}, {selectedDelivery.district}</div>
+                        <div className="mt-2 font-medium">Selecione um entregador:</div>
+                      </div>
+                    )}
+                    
+                    <div className="space-y-2">
+                      {deliveryDrivers
+                        .filter(driver => driver.available && !driver.currentDelivery)
+                        .map(driver => (
+                          <div 
+                            key={driver.id}
+                            className={`p-3 border rounded-md cursor-pointer flex items-center justify-between ${
+                              selectedDriver === driver.name ? "border-primary bg-primary/5" : ""
+                            }`}
+                            onClick={() => setSelectedDriver(driver.name)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                              <span>{driver.name}</span>
+                            </div>
+                            <Badge variant="outline">{driver.ordersDelivered} entregas</Badge>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsAssignDialogOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleAssignDriver}>
+                    Atribuir Entregador
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
       </div>
-      
-      {/* Dialog para Atribuir Entregador */}
-      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Atribuir Entregador</DialogTitle>
-            <DialogDescription>
-              {selectedDelivery && `Pedido #${selectedDelivery.orderId} para ${selectedDelivery.customerName}`}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="driver">Selecione o Entregador</Label>
-              <select
-                id="driver"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                value={selectedDriver}
-                onChange={(e) => setSelectedDriver(e.target.value)}
-              >
-                <option value="">Selecione um entregador</option>
-                {deliveryDrivers
-                  .filter(driver => driver.available && !driver.currentDelivery)
-                  .map(driver => (
-                    <option key={driver.id} value={driver.name}>
-                      {driver.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            {selectedDelivery && (
-              <div className="bg-muted p-3 rounded-md">
-                <div className="text-sm font-medium mb-2">Detalhes da Entrega:</div>
-                <div className="text-sm space-y-1">
-                  <div className="flex items-start gap-2">
-                    <Home className="h-4 w-4 mt-1 shrink-0 text-muted-foreground" />
-                    <span>{selectedDelivery.address}, {selectedDelivery.district}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span>Tempo estimado: {selectedDelivery.estimatedTime}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button type="button" onClick={handleAssignDriver}>
-              Confirmar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
