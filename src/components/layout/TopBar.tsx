@@ -1,92 +1,103 @@
 
-import React from "react";
-import { Bell, Settings, LogOut } from "lucide-react";
-import { useUser } from "@/contexts/UserContext";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useUser } from "@/contexts/UserContext";
+import { useEstabelecimentoConfig } from "@/hooks/useEstabelecimentoConfig";
+import { Bell, Search, User } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 export const TopBar = () => {
   const { user, logout } = useUser();
-  
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase();
-  };
-
-  // Função para traduzir o nome da página
-  const getPageName = (path: string) => {
-    if (path === "/") return "Dashboard";
-    const pathMap: Record<string, string> = {
-      "/tables": "Mesas",
-      "/menu": "Cardápio",
-      "/orders": "Pedidos",
-      "/inventory": "Estoque",
-      "/checkout": "Caixa",
-      "/delivery": "Delivery"
-    };
-    return pathMap[path] || path.substring(1).charAt(0).toUpperCase() + path.substring(2);
-  };
+  const { config } = useEstabelecimentoConfig();
+  const [showSearch, setShowSearch] = useState(false);
 
   return (
-    <div className="h-16 border-b border-border bg-background flex items-center justify-between px-4 md:px-6">
-      <div>
-        <h2 className="font-semibold text-lg">
-          {getPageName(window.location.pathname)}
-        </h2>
+    <header className="h-16 border-b bg-background flex items-center justify-between px-4 md:px-6">
+      <div className="flex items-center md:hidden">
+        <div className="flex items-center gap-2">
+          {config.logoUrl && (
+            <img 
+              src={config.logoUrl} 
+              alt="Logo" 
+              className="w-6 h-6 object-contain"
+            />
+          )}
+          <span className="font-semibold">{config.nome || "Sabor Express"}</span>
+        </div>
       </div>
-      
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon">
-          <Bell size={20} />
+
+      <div className="flex items-center gap-4 md:gap-6 ml-auto">
+        {showSearch ? (
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Buscar..."
+              className="w-full bg-background pl-8"
+              autoFocus
+              onBlur={() => setShowSearch(false)}
+            />
+          </div>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowSearch(true)}
+            className="text-muted-foreground"
+          >
+            <Search className="h-5 w-5" />
+            <span className="sr-only">Buscar</span>
+          </Button>
+        )}
+        <Button variant="ghost" size="icon" className="text-muted-foreground">
+          <Bell className="h-5 w-5" />
+          <span className="sr-only">Notificações</span>
         </Button>
-        
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {user ? getInitials(user.name) : "U"}
-                </AvatarFallback>
-              </Avatar>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+            >
+              <User className="h-5 w-5" />
+              <span className="sr-only">Menu de usuário</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.name}</p>
-                <p className="text-xs leading-none text-muted-foreground capitalize">
-                  {user?.role === "admin" ? "Administrador" : 
-                   user?.role === "waiter" ? "Garçom" :
-                   user?.role === "kitchen" ? "Cozinha" :
-                   user?.role === "cashier" ? "Caixa" :
-                   user?.role === "customer" ? "Cliente" : user?.role}
-                </p>
+          <DropdownMenuContent align="end">
+            <div className="flex items-center gap-2 p-2">
+              <div className="flex flex-col space-y-0.5">
+                <p className="text-sm font-medium">{user?.name}</p>
+                <p className="text-xs text-muted-foreground">{user?.email}</p>
               </div>
-            </DropdownMenuLabel>
+            </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Configurações</span>
+            <DropdownMenuItem asChild>
+              <Link to="/">Dashboard</Link>
             </DropdownMenuItem>
+            {user?.role === "admin" && (
+              <DropdownMenuItem asChild>
+                <Link to="/configuracao">Configurações</Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Sair</span>
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={logout}
+            >
+              Sair
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </div>
+    </header>
   );
 };

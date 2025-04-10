@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { UserProvider, useUser } from "@/contexts/UserContext";
+import { EstabelecimentoConfigProvider } from "@/hooks/useEstabelecimentoConfig";
 
 // Layout
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -19,6 +20,7 @@ import InventoryPage from "./pages/InventoryPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import DeliveryPage from "./pages/DeliveryPage";
 import UserManagementPage from "./pages/UserManagementPage";
+import ConfiguracaoPage from "./pages/ConfiguracaoPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -125,6 +127,14 @@ const AppRoutes = () => {
             </RoleRoute>
           } 
         />
+        <Route 
+          path="/configuracao" 
+          element={
+            <RoleRoute allowedRoles={["admin"]}>
+              <ConfiguracaoPage />
+            </RoleRoute>
+          } 
+        />
         {/* Catch-all route */}
         <Route path="*" element={<NotFound />} />
       </Route>
@@ -135,13 +145,15 @@ const AppRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <UserProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </TooltipProvider>
+      <EstabelecimentoConfigProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </TooltipProvider>
+      </EstabelecimentoConfigProvider>
     </UserProvider>
   </QueryClientProvider>
 );
