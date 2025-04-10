@@ -16,13 +16,13 @@ import {
   Menu,
   Store,
 } from "lucide-react";
-import { useMobile } from "@/hooks/use-mobile"; 
+import { useIsMobile } from "@/hooks/use-mobile"; 
 import { Button } from "@/components/ui/button";
 
 export const Sidebar = () => {
   const { hasRole } = useUser();
   const location = useLocation();
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const { config } = useEstabelecimentoConfig();
 
   const isActive = (path: string) => location.pathname === path;
