@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,10 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { Search, Plus, Alert, AlertCircle, Edit, Trash2, ArrowDown, ArrowUp } from "lucide-react";
+import { Search, Plus, AlertTriangle, AlertCircle, Edit, Trash2, ArrowDown, ArrowUp } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 
-// Dados fictícios de estoque
 const inventoryItems = [
   {
     id: 1,
@@ -126,11 +124,9 @@ const InventoryPage = () => {
     item.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  // Itens com estoque baixo
   const lowStockItems = filteredItems.filter(item => item.currentStock <= item.minStock);
   
   const handleAddItem = () => {
-    // Validar campos
     if (!newItem.name || !newItem.category || !newItem.currentStock || !newItem.minStock || !newItem.unit || !newItem.price) {
       toast({
         title: "Erro",
@@ -287,12 +283,11 @@ const InventoryPage = () => {
         </div>
       </div>
       
-      {/* Alertas de estoque baixo */}
       {lowStockItems.length > 0 && (
         <Card className="border-l-4 border-l-orange-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
-              <Alert className="h-5 w-5 mr-2 text-orange-500" />
+              <AlertTriangle className="h-5 w-5 mr-2 text-orange-500" />
               Alerta de Estoque Baixo
             </CardTitle>
           </CardHeader>
@@ -389,7 +384,6 @@ const InventoryPage = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Dialog de Reposição de Estoque */}
       <Dialog open={isRestockDialogOpen} onOpenChange={setIsRestockDialogOpen}>
         <DialogContent>
           <DialogHeader>
