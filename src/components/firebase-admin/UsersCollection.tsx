@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from "react";
-import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, deleteDoc, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -39,6 +38,7 @@ import { PlusCircle, Pencil, Trash2, Loader2, RefreshCw } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserRole } from "@/contexts/UserContext";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface User {
   id: string;
@@ -58,10 +58,12 @@ const UsersCollection: React.FC = () => {
   });
   const [isNewUser, setIsNewUser] = useState(true);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchUsers = async () => {
     setLoading(true);
+    setSubmitError(null);
     try {
       const usersCollection = collection(db, "users");
       const usersSnapshot = await getDocs(usersCollection);
@@ -78,6 +80,7 @@ const UsersCollection: React.FC = () => {
       setUsers(usersList);
     } catch (error) {
       console.error("Erro ao buscar usuários:", error);
+      setSubmitError("Erro ao carregar usuários: " + (error as Error).message);
       toast({
         title: "Erro",
         description: "Não foi possível carregar os usuários",
@@ -109,6 +112,7 @@ const UsersCollection: React.FC = () => {
     });
     setIsNewUser(true);
     setEditingUserId(null);
+    setSubmitError(null);
   };
 
   const handleSubmit = async () => {
@@ -122,6 +126,7 @@ const UsersCollection: React.FC = () => {
     }
 
     setLoading(true);
+    setSubmitError(null);
     try {
       if (isNewUser) {
         // Gerar um novo ID para usuário
@@ -129,12 +134,26 @@ const UsersCollection: React.FC = () => {
         const newUser: User = {
           id: newUserId,
           name: formData.name!,
-          email: formData.email,
+          email: formData.email || "",
           role: formData.role!,
         };
         
-        // Salvar no Firestore
-        await setDoc(doc(db, "users", newUserId), newUser);
+        // Salvar no Firestore usando um método alternativo com addDoc
+        try {
+          // Primeiro tente usando setDoc com ID personalizado
+          await setDoc(doc(db, "users", newUserId), newUser);
+        } catch (setDocError) {
+          console.error("Erro ao usar setDoc, tentando addDoc:", setDocError);
+          // Se falhar, tente com addDoc (que gera um ID automático)
+          const docRef = await addDoc(collection(db, "users"), {
+            name: formData.name!,
+            email: formData.email || "",
+            role: formData.role!,
+          });
+          
+          // Atualizar o ID do usuário recém-criado
+          newUser.id = docRef.id;
+        }
         
         setUsers(prev => [...prev, newUser]);
         toast({
@@ -145,7 +164,7 @@ const UsersCollection: React.FC = () => {
         // Atualizar usuário existente
         const updatedData = {
           name: formData.name,
-          email: formData.email,
+          email: formData.email || "",
           role: formData.role,
         };
         
@@ -164,14 +183,15 @@ const UsersCollection: React.FC = () => {
       }
     } catch (error) {
       console.error("Erro ao salvar usuário:", error);
+      const errorMessage = (error as Error).message || "Erro desconhecido";
+      setSubmitError(`Erro ao salvar usuário: ${errorMessage}`);
       toast({
         title: "Erro",
-        description: "Não foi possível salvar o usuário",
+        description: "Não foi possível salvar o usuário: " + errorMessage,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
-      resetForm();
     }
   };
 
@@ -266,6 +286,12 @@ const UsersCollection: React.FC = () => {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
+                  {submitError && (
+                    <Alert variant="destructive">
+                      <AlertTitle>Erro</AlertTitle>
+                      <AlertDescription>{submitError}</AlertDescription>
+                    </Alert>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="name">Nome</Label>
                     <Input
@@ -307,17 +333,13 @@ const UsersCollection: React.FC = () => {
                   </div>
                 </div>
                 <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline" onClick={resetForm}>Cancelar</Button>
-                  </DialogClose>
-                  <DialogClose asChild>
-                    <Button onClick={handleSubmit} disabled={loading}>
-                      {loading ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : null}
-                      {isNewUser ? "Adicionar" : "Atualizar"}
-                    </Button>
-                  </DialogClose>
+                  <Button variant="outline" onClick={resetForm}>Cancelar</Button>
+                  <Button onClick={handleSubmit} disabled={loading}>
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
+                    {isNewUser ? "Adicionar" : "Atualizar"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -325,6 +347,12 @@ const UsersCollection: React.FC = () => {
         </div>
       </CardHeader>
       <CardContent>
+        {submitError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTitle>Erro</AlertTitle>
+            <AlertDescription>{submitError}</AlertDescription>
+          </Alert>
+        )}
         <div className="border rounded-md">
           <Table>
             <TableHeader>
@@ -374,6 +402,12 @@ const UsersCollection: React.FC = () => {
                                 Atualize as informações do usuário.
                               </DialogDescription>
                             </DialogHeader>
+                            {submitError && (
+                              <Alert variant="destructive">
+                                <AlertTitle>Erro</AlertTitle>
+                                <AlertDescription>{submitError}</AlertDescription>
+                              </Alert>
+                            )}
                             <div className="space-y-4 py-4">
                               <div className="space-y-2">
                                 <Label htmlFor="edit-name">Nome</Label>
@@ -416,17 +450,13 @@ const UsersCollection: React.FC = () => {
                               </div>
                             </div>
                             <DialogFooter>
-                              <DialogClose asChild>
-                                <Button variant="outline" onClick={resetForm}>Cancelar</Button>
-                              </DialogClose>
-                              <DialogClose asChild>
-                                <Button onClick={handleSubmit} disabled={loading}>
-                                  {loading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                  ) : null}
-                                  Atualizar
-                                </Button>
-                              </DialogClose>
+                              <Button variant="outline" onClick={resetForm}>Cancelar</Button>
+                              <Button onClick={handleSubmit} disabled={loading}>
+                                {loading ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : null}
+                                Atualizar
+                              </Button>
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>

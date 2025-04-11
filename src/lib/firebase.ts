@@ -1,8 +1,8 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getStorage, connectStorageEmulator } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -22,5 +22,18 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// For development only: Use local emulators if available 
+// This helps with permissions issues when testing locally
+const useEmulators = false; // Set to true to use local emulators
+
+if (useEmulators) {
+  // Connect to local Firestore emulator
+  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  // Connect to local Storage emulator
+  connectStorageEmulator(storage, '127.0.0.1', 9199);
+  
+  console.log('Using Firebase Emulators for local development');
+}
 
 export default app;
