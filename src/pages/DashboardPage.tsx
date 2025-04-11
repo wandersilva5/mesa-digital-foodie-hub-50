@@ -1,44 +1,198 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowDown, ArrowUp, CreditCard, Loader2, ShoppingCart, UserCheck, Utensils } from "lucide-react";
+import { collection, query, where, getDocs, Timestamp, orderBy, limit } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { format } from "date-fns";
+import { useRouter } from "next/router";
 
 const DashboardPage = () => {
   const { user } = useUser();
+  const router = useRouter();
+  const [stats, setStats] = useState({
+    todaySales: 0,
+    activeOrders: 0,
+    occupiedTables: 0,
+    totalTables: 0,
+    servedCustomers: 0,
+    pendingOrders: 0,
+    readyOrders: 0,
+    ordersInPreparation: 0,
+    completedOrders: 0,
+    pendingPayments: 0,
+    completedTransactions: 0
+  });
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user) return;
+      
+      try {
+        setLoading(true);
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayTimestamp = Timestamp.fromDate(startOfToday);
+        
+        // Fetch today's sales
+        const paymentsRef = collection(db, "payments");
+        const paymentsQuery = query(
+          paymentsRef,
+          where("createdAt", ">=", todayTimestamp),
+          where("status", "==", "completed")
+        );
+        const paymentsSnapshot = await getDocs(paymentsQuery);
+        
+        let todaySales = 0;
+        paymentsSnapshot.forEach((doc) => {
+          const payment = doc.data();
+          todaySales += payment.amount;
+        });
+        
+        // Fetch active orders
+        const ordersRef = collection(db, "orders");
+        const activeOrdersQuery = query(
+          ordersRef,
+          where("status", "in", ["pending", "preparing", "ready"])
+        );
+        const activeOrdersSnapshot = await getDocs(activeOrdersQuery);
+        
+        // Fetch tables
+        const tablesRef = collection(db, "tables");
+        const tablesSnapshot = await getDocs(tablesRef);
+        const occupiedTablesSnapshot = await getDocs(
+          query(tablesRef, where("status", "==", "occupied"))
+        );
+        
+        // Fetch recent orders
+        const recentOrdersQuery = query(
+          ordersRef,
+          orderBy("createdAt", "desc"),
+          limit(5)
+        );
+        const recentOrdersSnapshot = await getDocs(recentOrdersQuery);
+        const recentOrdersList: any[] = [];
+        
+        recentOrdersSnapshot.forEach((doc) => {
+          const data = doc.data();
+          recentOrdersList.push({
+            id: doc.id,
+            tableNumber: data.tableNumber,
+            items: data.items,
+            status: data.status,
+            createdAt: data.createdAt,
+          });
+        });
+        
+        // Count orders by status
+        const pendingOrdersQuery = query(ordersRef, where("status", "==", "pending"));
+        const pendingOrdersSnapshot = await getDocs(pendingOrdersQuery);
+        
+        const preparingOrdersQuery = query(ordersRef, where("status", "==", "preparing"));
+        const preparingOrdersSnapshot = await getDocs(preparingOrdersQuery);
+        
+        const readyOrdersQuery = query(ordersRef, where("status", "==", "ready"));
+        const readyOrdersSnapshot = await getDocs(readyOrdersQuery);
+        
+        const completedOrdersQuery = query(
+          ordersRef,
+          where("status", "==", "delivered"),
+          where("createdAt", ">=", todayTimestamp)
+        );
+        const completedOrdersSnapshot = await getDocs(completedOrdersQuery);
+        
+        // Count pending payments
+        const pendingPaymentsQuery = query(
+          ordersRef,
+          where("status", "==", "delivered"),
+          where("paymentStatus", "==", "pending")
+        );
+        const pendingPaymentsSnapshot = await getDocs(pendingPaymentsQuery);
+        
+        // Update stats
+        setStats({
+          todaySales,
+          activeOrders: activeOrdersSnapshot.size,
+          occupiedTables: occupiedTablesSnapshot.size,
+          totalTables: tablesSnapshot.size,
+          servedCustomers: completedOrdersSnapshot.size,
+          pendingOrders: pendingOrdersSnapshot.size,
+          readyOrders: readyOrdersSnapshot.size,
+          ordersInPreparation: preparingOrdersSnapshot.size,
+          completedOrders: completedOrdersSnapshot.size,
+          pendingPayments: pendingPaymentsSnapshot.size,
+          completedTransactions: paymentsSnapshot.size
+        });
+        
+        setRecentOrders(recentOrdersList);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDashboardData();
+    
+    // Set up a timer to refresh data every 5 minutes
+    const intervalId = setInterval(fetchDashboardData, 5 * 60 * 1000);
+    
+    return () => clearInterval(intervalId);
+  }, [user]);
   
   // Cards de estatísticas com base na função do usuário
   const getStatCards = () => {
+    if (loading) {
+      return (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="pb-2">
+                <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-7 bg-gray-200 rounded w-1/4 mb-1"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      );
+    }
+    
     switch (user?.role) {
       case "admin":
         return (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard 
               title="Vendas de Hoje" 
-              value="R$ 1.240,56" 
-              description="+12% em relação a ontem"
+              value={`R$ ${stats.todaySales.toFixed(2).replace('.', ',')}`} 
+              description="Faturamento total do dia"
               icon={<CreditCard className="h-5 w-5 text-muted-foreground" />}
               trend="up"
             />
             <StatCard 
               title="Pedidos Ativos" 
-              value="32" 
-              description="4 aguardando preparo"
+              value={stats.activeOrders.toString()} 
+              description={`${stats.pendingOrders} aguardando preparo`}
               icon={<ShoppingCart className="h-5 w-5 text-muted-foreground" />}
               trend="none"
             />
             <StatCard 
               title="Mesas Ocupadas" 
-              value="8/12" 
-              description="66% de taxa de ocupação"
+              value={`${stats.occupiedTables}/${stats.totalTables}`} 
+              description={`${Math.round((stats.occupiedTables / (stats.totalTables || 1)) * 100)}% de taxa de ocupação`}
               icon={<Utensils className="h-5 w-5 text-muted-foreground" />}
               trend="up"
             />
             <StatCard 
               title="Clientes Atendidos" 
-              value="146" 
-              description="+8% em relação a ontem"
+              value={stats.servedCustomers.toString()} 
+              description="Pedidos entregues hoje"
               icon={<UserCheck className="h-5 w-5 text-muted-foreground" />}
               trend="up"
             />
@@ -48,23 +202,23 @@ const DashboardPage = () => {
         return (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <StatCard 
-              title="Suas Mesas" 
-              value="5" 
-              description="2 precisam de atenção"
+              title="Mesas Ocupadas" 
+              value={`${stats.occupiedTables}/${stats.totalTables}`} 
+              description={`${Math.round((stats.occupiedTables / (stats.totalTables || 1)) * 100)}% de ocupação`}
               icon={<Utensils className="h-5 w-5 text-muted-foreground" />}
               trend="none"
-              alert
+              alert={stats.occupiedTables > stats.totalTables / 2}
             />
             <StatCard 
               title="Pedidos Pendentes" 
-              value="7" 
-              description="3 prontos para entrega"
+              value={stats.activeOrders.toString()} 
+              description={`${stats.readyOrders} prontos para entrega`}
               icon={<ShoppingCart className="h-5 w-5 text-muted-foreground" />}
               trend="none"
             />
             <StatCard 
               title="Atendimentos Hoje" 
-              value="24" 
+              value={stats.completedOrders.toString()} 
               description="Pedidos completados"
               icon={<UserCheck className="h-5 w-5 text-muted-foreground" />}
               trend="up"
@@ -76,23 +230,23 @@ const DashboardPage = () => {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <StatCard 
               title="Fila de Pedidos" 
-              value="12" 
-              description="4 alta prioridade"
+              value={stats.pendingOrders.toString()} 
+              description="Aguardando preparo"
               icon={<ShoppingCart className="h-5 w-5 text-muted-foreground" />}
               trend="up"
-              alert
+              alert={stats.pendingOrders > 5}
             />
             <StatCard 
               title="Em Preparo" 
-              value="5" 
-              description="Estimado 15 min"
+              value={stats.ordersInPreparation.toString()} 
+              description="Sendo preparados"
               icon={<Loader2 className="h-5 w-5 text-muted-foreground" />}
               trend="none"
             />
             <StatCard 
               title="Completados Hoje" 
-              value="87" 
-              description="65 no local, 22 delivery"
+              value={stats.completedOrders.toString()} 
+              description="Pedidos finalizados"
               icon={<UserCheck className="h-5 w-5 text-muted-foreground" />}
               trend="up"
             />
@@ -103,22 +257,22 @@ const DashboardPage = () => {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <StatCard 
               title="Vendas de Hoje" 
-              value="R$ 1.240,56" 
-              description="+12% em relação a ontem"
+              value={`R$ ${stats.todaySales.toFixed(2).replace('.', ',')}`} 
+              description="Faturamento total do dia"
               icon={<CreditCard className="h-5 w-5 text-muted-foreground" />}
               trend="up"
             />
             <StatCard 
               title="Pagamentos Pendentes" 
-              value="5" 
+              value={stats.pendingPayments.toString()} 
               description="Mesas prontas para pagar"
               icon={<ShoppingCart className="h-5 w-5 text-muted-foreground" />}
               trend="none"
-              alert
+              alert={stats.pendingPayments > 0}
             />
             <StatCard 
               title="Transações Concluídas" 
-              value="32" 
+              value={stats.completedTransactions.toString()} 
               description="Pagamentos processados hoje"
               icon={<UserCheck className="h-5 w-5 text-muted-foreground" />}
               trend="up"
@@ -132,6 +286,31 @@ const DashboardPage = () => {
             <p className="text-muted-foreground mt-2">Não há dados para exibir para esta função de usuário.</p>
           </div>
         );
+    }
+  };
+  
+  const handleQuickAction = (action: string) => {
+    switch(action) {
+      case "gerenciar-mesas":
+        router.push("/tables");
+        break;
+      case "verificar-estoque":
+        router.push("/inventory");
+        break;
+      case "adicionar-item-menu":
+        router.push("/menu");
+        break;
+      case "criar-pedido":
+        router.push("/orders/new");
+        break;
+      case "processar-pagamento":
+        router.push("/checkout");
+        break;
+      case "ver-fila-pedidos":
+        router.push("/orders");
+        break;
+      default:
+        console.log("Action not implemented:", action);
     }
   };
   
@@ -149,41 +328,44 @@ const DashboardPage = () => {
             <CardDescription>Últimos pedidos de clientes recebidos</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {["admin", "waiter", "kitchen", "cashier"].includes(user?.role as string) && (
-                <>
-                  <OrderItem 
-                    table="Mesa 5" 
-                    items="2x Hambúrguer, 1x Batata Frita, 2x Refrigerante" 
-                    time="5 min atrás" 
-                    status="pending" 
-                  />
-                  <OrderItem 
-                    table="Mesa 2" 
-                    items="1x Pizza, 2x Cerveja" 
-                    time="12 min atrás" 
-                    status="preparing" 
-                  />
-                  <OrderItem 
-                    table="Mesa 8" 
-                    items="3x Macarrão, 1x Salada, 3x Água" 
-                    time="18 min atrás" 
-                    status="ready" 
-                  />
-                  <OrderItem 
-                    table="Mesa 1" 
-                    items="2x Filé, 1x Vinho" 
-                    time="25 min atrás" 
-                    status="delivered" 
-                  />
-                </>
-              )}
-              {user?.role === "customer" && (
-                <p className="text-center py-4 text-muted-foreground">
-                  Seu histórico de pedidos aparecerá aqui
-                </p>
-              )}
-            </div>
+            {loading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="animate-pulse flex justify-between border-b pb-2">
+                    <div className="space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-24"></div>
+                      <div className="h-3 bg-gray-200 rounded w-48"></div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-16"></div>
+                      <div className="h-3 bg-gray-200 rounded w-20"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : ["admin", "waiter", "kitchen", "cashier"].includes(user?.role as string) ? (
+              <div className="space-y-2">
+                {recentOrders.length > 0 ? (
+                  recentOrders.map((order) => (
+                    <OrderItem 
+                      key={order.id}
+                      table={order.tableNumber ? `Mesa ${order.tableNumber}` : "Delivery"}
+                      items={order.items.map((item: any) => `${item.quantity}x ${item.name || 'Item'}`).join(', ')}
+                      time={formatTimeAgo(order.createdAt?.toDate())}
+                      status={order.status}
+                    />
+                  ))
+                ) : (
+                  <p className="text-center py-4 text-muted-foreground">
+                    Nenhum pedido recente encontrado
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-center py-4 text-muted-foreground">
+                Seu histórico de pedidos aparecerá aqui
+              </p>
+            )}
           </CardContent>
         </Card>
         
@@ -196,37 +378,37 @@ const DashboardPage = () => {
             <div className="space-y-2">
               {user?.role === "admin" && (
                 <>
-                  <QuickAction label="Adicionar novo item ao menu" />
-                  <QuickAction label="Gerenciar mesas" />
-                  <QuickAction label="Verificar estoque" />
+                  <QuickAction label="Adicionar novo item ao menu" onClick={() => handleQuickAction("adicionar-item-menu")} />
+                  <QuickAction label="Gerenciar mesas" onClick={() => handleQuickAction("gerenciar-mesas")} />
+                  <QuickAction label="Verificar estoque" onClick={() => handleQuickAction("verificar-estoque")} />
                 </>
               )}
               {user?.role === "waiter" && (
                 <>
-                  <QuickAction label="Verificar status das mesas" />
-                  <QuickAction label="Criar novo pedido" />
-                  <QuickAction label="Processar fechamento" />
+                  <QuickAction label="Verificar status das mesas" onClick={() => handleQuickAction("gerenciar-mesas")} />
+                  <QuickAction label="Criar novo pedido" onClick={() => handleQuickAction("criar-pedido")} />
+                  <QuickAction label="Processar fechamento" onClick={() => handleQuickAction("processar-pagamento")} />
                 </>
               )}
               {user?.role === "kitchen" && (
                 <>
-                  <QuickAction label="Ver fila de pedidos" />
-                  <QuickAction label="Marcar pedido como pronto" />
-                  <QuickAction label="Atualizar estoque" />
+                  <QuickAction label="Ver fila de pedidos" onClick={() => handleQuickAction("ver-fila-pedidos")} />
+                  <QuickAction label="Marcar pedido como pronto" onClick={() => handleQuickAction("ver-fila-pedidos")} />
+                  <QuickAction label="Atualizar estoque" onClick={() => handleQuickAction("verificar-estoque")} />
                 </>
               )}
               {user?.role === "cashier" && (
                 <>
-                  <QuickAction label="Processar pagamento" />
-                  <QuickAction label="Ver resumo diário" />
-                  <QuickAction label="Fechar caixa" />
+                  <QuickAction label="Processar pagamento" onClick={() => handleQuickAction("processar-pagamento")} />
+                  <QuickAction label="Ver resumo diário" onClick={() => handleQuickAction("processar-pagamento")} />
+                  <QuickAction label="Fechar caixa" onClick={() => handleQuickAction("processar-pagamento")} />
                 </>
               )}
               {user?.role === "customer" && (
                 <>
-                  <QuickAction label="Ver cardápio" />
-                  <QuickAction label="Acompanhar pedido" />
-                  <QuickAction label="Solicitar atendimento" />
+                  <QuickAction label="Ver cardápio" onClick={() => handleQuickAction("ver-cardapio")} />
+                  <QuickAction label="Acompanhar pedido" onClick={() => handleQuickAction("acompanhar-pedido")} />
+                  <QuickAction label="Solicitar atendimento" onClick={() => handleQuickAction("solicitar-atendimento")} />
                 </>
               )}
             </div>
@@ -281,7 +463,7 @@ const OrderItem = ({
   table: string, 
   items: string, 
   time: string, 
-  status: "pending" | "preparing" | "ready" | "delivered" | "cancelled"
+  status: "pending" | "preparing" | "ready" | "delivered" | "canceled"
 }) => {
   return (
     <div className="flex items-center justify-between border-b border-border py-2 last:border-0">
@@ -296,7 +478,7 @@ const OrderItem = ({
           {status === "preparing" && "Em preparo"}
           {status === "ready" && "Pronto"}
           {status === "delivered" && "Entregue"}
-          {status === "cancelled" && "Cancelado"}
+          {status === "canceled" && "Cancelado"}
         </div>
       </div>
     </div>
@@ -304,12 +486,29 @@ const OrderItem = ({
 };
 
 // Componente de Ação Rápida
-const QuickAction = ({ label }: { label: string }) => {
+const QuickAction = ({ label, onClick }: { label: string, onClick: () => void }) => {
   return (
-    <Button variant="outline" className="w-full justify-start text-left">
+    <Button variant="outline" className="w-full justify-start text-left" onClick={onClick}>
       {label}
     </Button>
   );
+};
+
+// Helper function to format relative time
+const formatTimeAgo = (date: Date) => {
+  if (!date) return "";
+  
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.round(diffMs / 60000);
+  
+  if (diffMin < 1) return "agora";
+  if (diffMin < 60) return `${diffMin} min atrás`;
+  
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h atrás`;
+  
+  return format(date, "dd/MM/yyyy");
 };
 
 export default DashboardPage;

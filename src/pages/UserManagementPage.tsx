@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useUser, User, UserRole } from "@/contexts/UserContext";
 import {
   Table,
@@ -34,12 +34,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { PencilIcon, Trash2Icon, PlusCircleIcon, SearchIcon } from "lucide-react";
+import { PencilIcon, Trash2Icon, PlusCircleIcon, SearchIcon, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { collection, getDocs, doc, getDoc, addDoc, deleteDoc, updateDoc, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const UserManagementPage = () => {
-  const { users, addUser, updateUser, deleteUser, user: currentUser } = useUser();
+  const { user: currentUser } = useUser();
   const { toast } = useToast();
+  const [users, setUsers] = useState<User[]>([]);
   const [formData, setFormData] = useState<Partial<User>>({
     name: "",
     email: "",
@@ -48,6 +51,46 @@ const UserManagementPage = () => {
   const [isNewUser, setIsNewUser] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (currentUser?.role !== 'admin') {
+      toast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para acessar esta página",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Set up real-time listener for users
+    const usersRef = collection(db, "users");
+    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
+      const usersList: User[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data() as Record<string, any>;
+        usersList.push({
+          id: doc.id,
+          name: data.name || "",
+          email: data.email || "",
+          role: (data.role as UserRole) || "waiter",
+        });
+      });
+      
+      setUsers(usersList);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error getting users:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os usuários",
+        variant: "destructive",
+      });
+      setLoading(false);
+    });
+    
+    return () => unsubscribe();
+  }, [currentUser]);
 
   // Filtra usuários de acordo com o termo de busca
   const filteredUsers = users.filter(user => 
@@ -75,7 +118,7 @@ const UserManagementPage = () => {
     setEditingUserId(null);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name || !formData.email || !formData.role) {
       toast({
         title: "Erro",
@@ -85,28 +128,61 @@ const UserManagementPage = () => {
       return;
     }
 
-    if (isNewUser) {
-      const newUser: User = {
-        id: Date.now().toString(),
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-      };
+    try {
+      if (isNewUser) {
+        // Check if email already exists
+        const emailCheck = query(
+          collection(db, "users"),
+          where("email", "==", formData.email)
+        );
+        const emailSnapshot = await getDocs(emailCheck);
+        
+        if (!emailSnapshot.empty) {
+          toast({
+            title: "Erro",
+            description: "Este email já está cadastrado",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Add new user
+        await addDoc(collection(db, "users"), {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          createdAt: new Date()
+        });
+        
+        toast({
+          title: "Sucesso",
+          description: "Usuário adicionado com sucesso",
+        });
+      } else if (editingUserId) {
+        // Update existing user
+        const userRef = doc(db, "users", editingUserId);
+        await updateDoc(userRef, {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          updatedAt: new Date()
+        });
+        
+        toast({
+          title: "Sucesso",
+          description: "Usuário atualizado com sucesso",
+        });
+      }
       
-      addUser(newUser);
+      resetForm();
+    } catch (error) {
+      console.error("Error saving user:", error);
       toast({
-        title: "Sucesso",
-        description: "Usuário adicionado com sucesso",
-      });
-    } else if (editingUserId) {
-      updateUser(editingUserId, formData);
-      toast({
-        title: "Sucesso",
-        description: "Usuário atualizado com sucesso",
+        title: "Erro",
+        description: "Não foi possível salvar o usuário",
+        variant: "destructive",
       });
     }
-    
-    resetForm();
   };
 
   const handleEditUser = (user: User) => {
@@ -119,12 +195,36 @@ const UserManagementPage = () => {
     setEditingUserId(user.id);
   };
 
-  const handleDeleteUser = (userId: string) => {
-    deleteUser(userId);
-    toast({
-      title: "Sucesso",
-      description: "Usuário excluído com sucesso",
-    });
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      // Check if this is the last admin
+      if (users.find(u => u.id === userId)?.role === "admin") {
+        const adminUsers = users.filter(u => u.role === "admin");
+        if (adminUsers.length <= 1) {
+          toast({
+            title: "Ação negada",
+            description: "Não é possível excluir o último administrador",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+      
+      // Delete the user
+      await deleteDoc(doc(db, "users", userId));
+      
+      toast({
+        title: "Sucesso",
+        description: "Usuário excluído com sucesso",
+      });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir o usuário",
+        variant: "destructive",
+      });
+    }
   };
 
   const translateRole = (role: UserRole | null): string => {
@@ -143,6 +243,17 @@ const UserManagementPage = () => {
         return "Desconhecido";
     }
   };
+  
+  if (currentUser?.role !== 'admin') {
+    return (
+      <div className="container mx-auto py-6">
+        <h1 className="text-2xl font-bold">Acesso Restrito</h1>
+        <p className="text-muted-foreground mt-2">
+          Você não tem permissão para acessar esta página.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -200,6 +311,7 @@ const UserManagementPage = () => {
                     <SelectItem value="waiter">Garçom</SelectItem>
                     <SelectItem value="cashier">Caixa</SelectItem>
                     <SelectItem value="kitchen">Cozinha</SelectItem>
+                    <SelectItem value="customer">Cliente</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -239,7 +351,16 @@ const UserManagementPage = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredUsers.length === 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="h-24 text-center">
+                  <div className="flex flex-col items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                    <span className="text-muted-foreground">Carregando usuários...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : filteredUsers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
                   Nenhum usuário encontrado
@@ -305,6 +426,7 @@ const UserManagementPage = () => {
                                 <SelectItem value="waiter">Garçom</SelectItem>
                                 <SelectItem value="cashier">Caixa</SelectItem>
                                 <SelectItem value="kitchen">Cozinha</SelectItem>
+                                <SelectItem value="customer">Cliente</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>

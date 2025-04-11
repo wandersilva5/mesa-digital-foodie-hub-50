@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,28 +9,65 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Edit, Eye, Plus, QrCode, Trash } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useUser } from "@/contexts/UserContext";
+import { collection, getDocs, doc, getDoc, addDoc, deleteDoc, updateDoc, onSnapshot, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Badge } from "@/components/ui/badge";
 
-// Dados iniciais fictícios de mesas
-const initialTables = [
-  { id: 1, number: 1, capacity: 4, occupied: true, orders: 2 },
-  { id: 2, number: 2, capacity: 2, occupied: false, orders: 0 },
-  { id: 3, number: 3, capacity: 6, occupied: true, orders: 1 },
-  { id: 4, number: 4, capacity: 4, occupied: false, orders: 0 },
-  { id: 5, number: 5, capacity: 8, occupied: true, orders: 3 },
-  { id: 6, number: 6, capacity: 4, occupied: false, orders: 0 },
-];
+interface Table {
+  id: string;
+  number: number;
+  capacity: number;
+  status: "available" | "occupied" | "reserved";
+  currentOrderId?: string | null;
+  lastOrderTimestamp?: any;
+}
 
 const TablesPage = () => {
   const { toast } = useToast();
   const { user } = useUser();
-  const [tables, setTables] = useState(initialTables);
+  const [tables, setTables] = useState<Table[]>([]);
   const [newTable, setNewTable] = useState({ number: "", capacity: "" });
-  const [selectedTable, setSelectedTable] = useState<null | number>(null);
+  const [selectedTable, setSelectedTable] = useState<null | string>(null);
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   const isAdmin = user?.role === "admin";
   
-  const handleAddTable = () => {
+  useEffect(() => {
+    const tablesRef = collection(db, "tables");
+    const unsubscribe = onSnapshot(tablesRef, (snapshot) => {
+      const tablesList: Table[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data() as Record<string, any>;
+        tablesList.push({ 
+          id: doc.id, 
+          number: data.number,
+          capacity: data.capacity,
+          status: data.status,
+          currentOrderId: data.currentOrderId,
+          lastOrderTimestamp: data.lastOrderTimestamp
+        });
+      });
+      
+      // Sort tables by number
+      tablesList.sort((a, b) => a.number - b.number);
+      
+      setTables(tablesList);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error getting tables:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as mesas",
+        variant: "destructive",
+      });
+      setLoading(false);
+    });
+    
+    return () => unsubscribe();
+  }, []);
+  
+  const handleAddTable = async () => {
     if (!newTable.number || !newTable.capacity) {
       toast({
         title: "Erro",
@@ -43,7 +80,9 @@ const TablesPage = () => {
     const tableNumber = parseInt(newTable.number);
     const capacity = parseInt(newTable.capacity);
     
-    if (tables.some(table => table.number === tableNumber)) {
+    // Check if table number already exists
+    const existingTable = tables.find(table => table.number === tableNumber);
+    if (existingTable) {
       toast({
         title: "Erro",
         description: "Número de mesa já existe",
@@ -52,41 +91,98 @@ const TablesPage = () => {
       return;
     }
     
-    setTables([
-      ...tables,
-      { 
-        id: Math.max(...tables.map(t => t.id), 0) + 1,
+    try {
+      // Add new table to Firestore
+      const tablesRef = collection(db, "tables");
+      await addDoc(tablesRef, {
         number: tableNumber,
-        capacity,
-        occupied: false,
-        orders: 0
-      }
-    ]);
-    
-    setNewTable({ number: "", capacity: "" });
-    
-    toast({
-      title: "Sucesso",
-      description: `Mesa ${tableNumber} foi adicionada`,
-    });
+        capacity: capacity,
+        status: "available",
+        currentOrderId: null,
+        lastOrderTimestamp: null
+      });
+      
+      setNewTable({ number: "", capacity: "" });
+      
+      toast({
+        title: "Sucesso",
+        description: `Mesa ${tableNumber} foi adicionada`,
+      });
+    } catch (error) {
+      console.error("Error adding table:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível adicionar a mesa",
+        variant: "destructive",
+      });
+    }
   };
   
-  const handleViewQr = (tableId: number) => {
+  const handleViewQr = (tableId: string) => {
     setSelectedTable(tableId);
     setIsQrDialogOpen(true);
   };
   
-  const handleDeleteTable = (tableId: number) => {
-    setTables(tables.filter(table => table.id !== tableId));
-    toast({
-      title: "Sucesso",
-      description: "Mesa foi excluída",
-    });
+  const handleDeleteTable = async (tableId: string) => {
+    try {
+      // Get the table to check its status
+      const tableRef = doc(db, "tables", tableId);
+      const tableSnap = await getDoc(tableRef);
+      
+      if (tableSnap.exists()) {
+        const tableData = tableSnap.data() as Table;
+        
+        // Only allow deletion if table is available
+        if (tableData.status === "occupied") {
+          toast({
+            title: "Erro",
+            description: "Não é possível excluir uma mesa ocupada",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Delete the table
+        await deleteDoc(tableRef);
+        
+        toast({
+          title: "Sucesso",
+          description: "Mesa foi excluída",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting table:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir a mesa",
+        variant: "destructive",
+      });
+    }
   };
   
-  const TableItem = ({ table }: { table: typeof tables[0] }) => {
+  const TableItem = ({ table }: { table: Table }) => {
+    const [activeOrders, setActiveOrders] = useState(0);
+    
+    useEffect(() => {
+      if (table.status === "occupied" && table.currentOrderId) {
+        // Count active orders for this table
+        const ordersRef = collection(db, "orders");
+        const q = query(
+          ordersRef, 
+          where("tableId", "==", table.id),
+          where("status", "in", ["pending", "preparing", "ready"])
+        );
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          setActiveOrders(snapshot.size);
+        });
+        
+        return () => unsubscribe();
+      }
+    }, [table.id, table.status, table.currentOrderId]);
+    
     return (
-      <Card className={`${table.occupied ? "border-l-4 border-l-primary" : ""}`}>
+      <Card className={`${table.status === 'occupied' ? "border-l-4 border-l-primary" : ""}`}>
         <CardHeader className="pb-2">
           <CardTitle className="text-lg">Mesa {table.number}</CardTitle>
           <CardDescription>
@@ -97,14 +193,24 @@ const TablesPage = () => {
           <div className="text-sm space-y-2">
             <div className="flex justify-between">
               <span>Status:</span>
-              <span className={table.occupied ? "text-primary font-medium" : "text-green-500"}>
-                {table.occupied ? "Ocupada" : "Disponível"}
+              <span className={
+                table.status === 'occupied' 
+                  ? "text-primary font-medium" 
+                  : table.status === 'reserved'
+                    ? "text-yellow-500"
+                    : "text-green-500"
+              }>
+                {table.status === 'occupied' 
+                  ? "Ocupada" 
+                  : table.status === 'reserved'
+                    ? "Reservada"
+                    : "Disponível"}
               </span>
             </div>
-            {table.occupied && (
+            {table.status === "occupied" && (
               <div className="flex justify-between">
                 <span>Pedidos Ativos:</span>
-                <span>{table.orders}</span>
+                <span>{activeOrders}</span>
               </div>
             )}
           </div>
@@ -125,6 +231,7 @@ const TablesPage = () => {
               size="sm" 
               className="flex-1"
               onClick={() => handleDeleteTable(table.id)}
+              disabled={table.status === "occupied"}
             >
               <Trash className="h-4 w-4 mr-2" />
               Excluir
@@ -195,25 +302,55 @@ const TablesPage = () => {
           <TabsTrigger value="occupied">Ocupadas</TabsTrigger>
         </TabsList>
         <TabsContent value="all" className="mt-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {tables.map(table => (
-              <TableItem key={table.id} table={table} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : tables.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {tables.map(table => (
+                <TableItem key={table.id} table={table} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Nenhuma mesa encontrada. Adicione uma mesa para começar.</p>
+            </div>
+          )}
         </TabsContent>
         <TabsContent value="available" className="mt-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {tables.filter(table => !table.occupied).map(table => (
-              <TableItem key={table.id} table={table} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : tables.filter(table => table.status === "available").length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {tables.filter(table => table.status === "available").map(table => (
+                <TableItem key={table.id} table={table} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Nenhuma mesa disponível no momento.</p>
+            </div>
+          )}
         </TabsContent>
         <TabsContent value="occupied" className="mt-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {tables.filter(table => table.occupied).map(table => (
-              <TableItem key={table.id} table={table} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : tables.filter(table => table.status === "occupied").length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {tables.filter(table => table.status === "occupied").map(table => (
+                <TableItem key={table.id} table={table} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Nenhuma mesa ocupada no momento.</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
       
