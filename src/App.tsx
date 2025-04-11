@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,7 +12,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 
 // Pages
 import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage"; // Nova página
+import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import TablesPage from "./pages/TablesPage";
 import MenuPage from "./pages/MenuPage";
@@ -24,6 +23,7 @@ import DeliveryPage from "./pages/DeliveryPage";
 import UserManagementPage from "./pages/UserManagementPage";
 import ConfiguracaoPage from "./pages/ConfiguracaoPage";
 import ConfiguracaoLanchonetePage from "./pages/ConfiguracaoLanchonetePage";
+import FirebaseAdminPage from "./pages/FirebaseAdminPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -64,7 +64,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} /> {/* Nova rota */}
+      <Route path="/register" element={<RegisterPage />} />
       <Route element={<AppLayout />}>
         {/* Protected routes */}
         <Route 
@@ -147,7 +147,14 @@ const AppRoutes = () => {
             </RoleRoute>
           } 
         />
-        {/* Catch-all route */}
+        <Route 
+          path="/firebase-admin" 
+          element={
+            <RoleRoute allowedRoles={["admin"]}>
+              <FirebaseAdminPage />
+            </RoleRoute>
+          } 
+        />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
