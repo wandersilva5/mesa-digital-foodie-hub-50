@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,89 +14,167 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { useUser } from "@/contexts/UserContext";
-import { CreditCard, Banknote, Wallet, Receipt, Clock, QrCode, Check, Printer, Calculator } from "lucide-react";
+import { CreditCard, Banknote, Wallet, Receipt, Clock, QrCode, Check, Printer, Calculator, Loader2 } from "lucide-react";
+import { getOrdersForCheckout } from "@/services/orderService";
+import { processPayment, openRegisterSession, closeRegisterSession, getActiveRegisterSession } from "@/services/paymentService";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-// Dados fictícios de pedidos para fechamento
-const checkoutOrders = [
-  {
-    id: 1,
-    tableNumber: 5,
-    customerName: "João Silva",
-    items: [
-      { name: "X-Burger Tradicional", quantity: 2, price: 18.90 },
-      { name: "Batata Frita", quantity: 1, price: 12.90 },
-      { name: "Refrigerante Lata", quantity: 2, price: 5.90 }
-    ],
-    status: "completed",
-    createdAt: "2023-05-10T15:30:00",
-    totalAmount: 62.50,
-    paid: false
-  },
-  {
-    id: 4,
-    tableNumber: 8,
-    customerName: "Ana Souza",
-    items: [
-      { name: "X-Salada", quantity: 1, price: 19.90 },
-      { name: "Batata Frita", quantity: 1, price: 12.90 },
-      { name: "Suco Natural", quantity: 1, price: 8.90 }
-    ],
-    status: "completed",
-    createdAt: "2023-05-10T16:15:00",
-    totalAmount: 41.70,
-    paid: false
-  },
-  {
-    id: 8,
-    tableNumber: 3,
-    customerName: "Roberto Almeida",
-    items: [
-      { name: "X-Bacon", quantity: 1, price: 22.90 },
-      { name: "Onion Rings", quantity: 1, price: 14.90 },
-      { name: "Refrigerante Lata", quantity: 1, price: 5.90 }
-    ],
-    status: "completed",
-    createdAt: "2023-05-10T17:20:00",
-    totalAmount: 43.70,
-    paid: false
-  }
-];
+interface RegisterSummary {
+  openingAmount: number;
+  cashSales: number;
+  cardSales: number;
+  pixSales: number;
+  totalSales: number;
+  expectedCash: number;
+  actualCash: number;
+  difference: number;
+}
 
-// Dados de transações do dia
-const dailyTransactions = [
-  { id: 101, orderId: 7, amount: 56.80, method: "Cartão de Crédito", time: "14:30" },
-  { id: 102, orderId: 5, amount: 37.50, method: "Pix", time: "15:15" },
-  { id: 103, orderId: 2, amount: 82.40, method: "Dinheiro", time: "16:05" },
-  { id: 104, orderId: 6, amount: 29.90, method: "Cartão de Débito", time: "16:45" }
-];
+interface Order {
+  id: string;
+  tableNumber?: number;
+  customerName?: string;
+  items: {
+    name: string;
+    quantity: number;
+    price: number;
+    productId: string;
+    observations?: string;
+  }[];
+  status: string;
+  createdAt: any;
+  total: number;
+  paid?: boolean;
+}
+
+interface Transaction {
+  id: number;
+  orderId: string;
+  amount: number;
+  method: string;
+  timestamp: any;
+  time: string;
+}
 
 const CheckoutPage = () => {
   const { toast } = useToast();
   const { user } = useUser();
-  const [selectedOrder, setSelectedOrder] = useState<null | typeof checkoutOrders[0]>(null);
+  const [selectedOrder, setSelectedOrder] = useState<null | Order>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>("");
   const [amountReceived, setAmountReceived] = useState<string>("");
-  const [isCashRegisterOpen, setIsCashRegisterOpen] = useState(true);
-  const [registerSummary, setRegisterSummary] = useState({
-    openingAmount: 200.00,
-    cashSales: 82.40,
-    cardSales: 86.70,
-    pixSales: 37.50,
-    totalSales: 206.60,
-    expectedCash: 282.40, // abertura + vendas em dinheiro
-    actualCash: 280.00, // valor que será contado no fim do dia
-    difference: -2.40
+  const [isCashRegisterOpen, setIsCashRegisterOpen] = useState(false);
+  const [registerSummary, setRegisterSummary] = useState<RegisterSummary>({
+    openingAmount: 0,
+    cashSales: 0,
+    cardSales: 0,
+    pixSales: 0,
+    totalSales: 0,
+    expectedCash: 0,
+    actualCash: 0,
+    difference: 0
   });
+  const [ordersForPayment, setOrdersForPayment] = useState<Order[]>([]);
+  const [dailyTransactions, setDailyTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [openingAmount, setOpeningAmount] = useState<string>("0");
+  const [closingAmount, setClosingAmount] = useState<string>("0");
+  const [showRegisterDialog, setShowRegisterDialog] = useState(false);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   
-  const handleOpenPayment = (order: typeof checkoutOrders[0]) => {
+  useEffect(() => {
+    checkRegisterStatus();
+    if (isCashRegisterOpen) {
+      fetchOrdersForPayment();
+      loadTransactions();
+    }
+  }, [isCashRegisterOpen]);
+  
+  const checkRegisterStatus = async () => {
+    try {
+      setLoading(true);
+      const activeSession = await getActiveRegisterSession();
+      
+      if (activeSession) {
+        setIsCashRegisterOpen(true);
+        setActiveSessionId(activeSession.id);
+        
+        const transactions = activeSession.transactions || [];
+        
+        let cashSales = 0;
+        let cardSales = 0;
+        let pixSales = 0;
+        
+        transactions.forEach((trans: any) => {
+          if (trans.method === "cash") cashSales += trans.amount;
+          else if (trans.method === "credit" || trans.method === "debit") cardSales += trans.amount;
+          else if (trans.method === "pix") pixSales += trans.amount;
+        });
+        
+        const totalSales = cashSales + cardSales + pixSales;
+        const expectedCash = activeSession.openingAmount + cashSales;
+        
+        setRegisterSummary({
+          openingAmount: activeSession.openingAmount,
+          cashSales,
+          cardSales,
+          pixSales,
+          totalSales,
+          expectedCash,
+          actualCash: expectedCash,
+          difference: 0
+        });
+      } else {
+        setIsCashRegisterOpen(false);
+      }
+    } catch (error) {
+      console.error("Error checking register status:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const fetchOrdersForPayment = async () => {
+    try {
+      setLoading(true);
+      const orders = await getOrdersForCheckout();
+      setOrdersForPayment(orders as Order[]);
+    } catch (error) {
+      console.error("Error fetching orders for payment:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os pedidos para pagamento",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const loadTransactions = async () => {
+    try {
+      const transactions: Transaction[] = dailyTransactions.length > 0 ? dailyTransactions : [
+        { id: 101, orderId: "7", amount: 56.80, method: "Cartão de Crédito", timestamp: new Date(), time: "14:30" },
+        { id: 102, orderId: "5", amount: 37.50, method: "Pix", timestamp: new Date(), time: "15:15" },
+        { id: 103, orderId: "2", amount: 82.40, method: "Dinheiro", timestamp: new Date(), time: "16:05" },
+        { id: 104, orderId: "6", amount: 29.90, method: "Cartão de Débito", timestamp: new Date(), time: "16:45" }
+      ];
+      
+      setDailyTransactions(transactions);
+    } catch (error) {
+      console.error("Error loading transactions:", error);
+    }
+  };
+  
+  const handleOpenPayment = (order: Order) => {
     setSelectedOrder(order);
     setPaymentMethod("");
     setAmountReceived("");
     setIsPaymentDialogOpen(true);
   };
   
-  const handleProcessPayment = () => {
+  const handleProcessPayment = async () => {
     if (!selectedOrder || !paymentMethod) {
       toast({
         title: "Erro",
@@ -107,9 +184,17 @@ const CheckoutPage = () => {
       return;
     }
     
-    // Para pagamento em dinheiro, verificar se o valor recebido é suficiente
+    if (!user) {
+      toast({
+        title: "Erro",
+        description: "Usuário não autenticado",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (paymentMethod === "cash") {
-      if (!amountReceived || parseFloat(amountReceived) < selectedOrder.totalAmount) {
+      if (!amountReceived || parseFloat(amountReceived) < selectedOrder.total) {
         toast({
           title: "Erro",
           description: "O valor recebido é menor que o total do pedido",
@@ -119,21 +204,177 @@ const CheckoutPage = () => {
       }
     }
     
-    toast({
-      title: "Pagamento Processado",
-      description: `Pedido #${selectedOrder.id} foi pago com sucesso`,
-    });
+    setLoading(true);
     
-    setIsPaymentDialogOpen(false);
+    try {
+      const received = paymentMethod === "cash" ? parseFloat(amountReceived) : selectedOrder.total;
+      const change = paymentMethod === "cash" ? received - selectedOrder.total : 0;
+      
+      await processPayment({
+        orderId: selectedOrder.id,
+        userId: selectedOrder.id,
+        staffId: user.uid,
+        method: paymentMethod as any,
+        amount: selectedOrder.total,
+        amountReceived: paymentMethod === "cash" ? received : undefined,
+        change: paymentMethod === "cash" ? change : undefined,
+        status: "completed"
+      });
+      
+      setOrdersForPayment(prevOrders => 
+        prevOrders.filter(order => order.id !== selectedOrder.id)
+      );
+      
+      const newTransaction = {
+        id: Date.now(),
+        orderId: selectedOrder.id,
+        amount: selectedOrder.total,
+        method: getPaymentMethodText(paymentMethod),
+        timestamp: new Date(),
+        time: format(new Date(), "HH:mm")
+      };
+      
+      setDailyTransactions(prev => [newTransaction, ...prev]);
+      
+      updateRegisterSummary(paymentMethod, selectedOrder.total);
+      
+      toast({
+        title: "Pagamento Processado",
+        description: `Pedido #${selectedOrder.id} foi pago com sucesso`,
+      });
+      
+      setIsPaymentDialogOpen(false);
+    } catch (error) {
+      console.error("Error processing payment:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível processar o pagamento",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const updateRegisterSummary = (method: string, amount: number) => {
+    setRegisterSummary(prev => {
+      const newSummary = { ...prev };
+      
+      if (method === "cash") {
+        newSummary.cashSales += amount;
+        newSummary.expectedCash += amount;
+      } else if (method === "credit" || method === "debit") {
+        newSummary.cardSales += amount;
+      } else if (method === "pix") {
+        newSummary.pixSales += amount;
+      }
+      
+      newSummary.totalSales = newSummary.cashSales + newSummary.cardSales + newSummary.pixSales;
+      
+      return newSummary;
+    });
+  };
+  
+  const handleOpenCashRegister = () => {
+    setOpeningAmount("0");
+    setShowRegisterDialog(true);
   };
   
   const handleCloseCashRegister = () => {
-    toast({
-      title: "Caixa Fechado",
-      description: "O caixa foi fechado com sucesso",
-    });
+    setClosingAmount(registerSummary.expectedCash.toFixed(2));
+    setShowRegisterDialog(true);
+  };
+  
+  const handleConfirmOpenRegister = async () => {
+    if (!openingAmount || parseFloat(openingAmount) < 0 || !user) {
+      toast({
+        title: "Erro",
+        description: "Por favor, insira um valor inicial válido",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    setIsCashRegisterOpen(false);
+    setLoading(true);
+    
+    try {
+      const amount = parseFloat(openingAmount);
+      const sessionId = await openRegisterSession(user.uid, amount, "Abertura manual de caixa");
+      
+      setActiveSessionId(sessionId);
+      setIsCashRegisterOpen(true);
+      setRegisterSummary({
+        openingAmount: amount,
+        cashSales: 0,
+        cardSales: 0,
+        pixSales: 0,
+        totalSales: 0,
+        expectedCash: amount,
+        actualCash: amount,
+        difference: 0
+      });
+      
+      toast({
+        title: "Caixa Aberto",
+        description: "O caixa foi aberto com sucesso",
+      });
+      
+      fetchOrdersForPayment();
+    } catch (error) {
+      console.error("Error opening register:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível abrir o caixa",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+      setShowRegisterDialog(false);
+    }
+  };
+  
+  const handleConfirmCloseRegister = async () => {
+    if (!closingAmount || parseFloat(closingAmount) < 0 || !activeSessionId) {
+      toast({
+        title: "Erro",
+        description: "Por favor, insira um valor final válido",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      const amount = parseFloat(closingAmount);
+      
+      const difference = amount - registerSummary.expectedCash;
+      setRegisterSummary(prev => ({
+        ...prev,
+        actualCash: amount,
+        difference
+      }));
+      
+      await closeRegisterSession(activeSessionId, amount, "Fechamento manual de caixa");
+      
+      toast({
+        title: "Caixa Fechado",
+        description: "O caixa foi fechado com sucesso",
+      });
+      
+      setIsCashRegisterOpen(false);
+      setActiveSessionId(null);
+    } catch (error) {
+      console.error("Error closing register:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível fechar o caixa",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+      setShowRegisterDialog(false);
+    }
   };
   
   const getPaymentIcon = (method: string) => {
@@ -161,8 +402,23 @@ const CheckoutPage = () => {
   const calculateChange = () => {
     if (!selectedOrder || !amountReceived) return 0;
     const received = parseFloat(amountReceived);
-    const total = selectedOrder.totalAmount;
+    const total = selectedOrder.total;
     return received > total ? received - total : 0;
+  };
+  
+  const formatTimestamp = (timestamp: any) => {
+    if (!timestamp) return "";
+    let date;
+    
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      date = timestamp.toDate();
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else {
+      date = new Date(timestamp);
+    }
+    
+    return format(date, "dd/MM/yyyy HH:mm", { locale: ptBR });
   };
   
   return (
@@ -175,18 +431,18 @@ const CheckoutPage = () => {
         
         <div className="flex gap-2">
           {isCashRegisterOpen ? (
-            <Button variant="outline" onClick={handleCloseCashRegister}>
+            <Button variant="outline" onClick={handleCloseCashRegister} disabled={loading}>
               <Calculator className="h-4 w-4 mr-2" />
               Fechar Caixa
             </Button>
           ) : (
-            <Button onClick={() => setIsCashRegisterOpen(true)}>
+            <Button onClick={handleOpenCashRegister} disabled={loading}>
               <Wallet className="h-4 w-4 mr-2" />
               Abrir Caixa
             </Button>
           )}
           
-          <Button>
+          <Button disabled={!isCashRegisterOpen || loading}>
             <Printer className="h-4 w-4 mr-2" />
             Relatório
           </Button>
@@ -198,20 +454,24 @@ const CheckoutPage = () => {
           {isCashRegisterOpen ? (
             <>
               <h2 className="text-lg font-semibold mb-4">Pedidos para Pagamento</h2>
-              {checkoutOrders.length > 0 ? (
+              {loading ? (
+                <Card>
+                  <CardContent className="text-center py-8 flex flex-col items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <p className="mt-2 text-sm text-muted-foreground">Carregando pedidos...</p>
+                  </CardContent>
+                </Card>
+              ) : ordersForPayment.length > 0 ? (
                 <div className="space-y-4">
-                  {checkoutOrders.map(order => (
+                  {ordersForPayment.map(order => (
                     <Card key={order.id}>
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-center">
                           <CardTitle className="text-lg">
-                            Mesa {order.tableNumber} - Pedido #{order.id}
+                            {order.tableNumber ? `Mesa ${order.tableNumber}` : 'Delivery'} - Pedido #{order.id.substring(0, 6)}
                           </CardTitle>
                           <span className="text-sm text-muted-foreground">
-                            {new Date(order.createdAt).toLocaleTimeString('pt-BR', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
+                            {formatTimestamp(order.createdAt)}
                           </span>
                         </div>
                       </CardHeader>
@@ -227,13 +487,14 @@ const CheckoutPage = () => {
                             ))}
                             <div className="border-t mt-2 pt-2 font-bold flex justify-between">
                               <span>Total</span>
-                              <span>R$ {order.totalAmount.toFixed(2).replace('.', ',')}</span>
+                              <span>R$ {order.total.toFixed(2).replace('.', ',')}</span>
                             </div>
                           </div>
                           
                           <Button 
                             className="w-full mt-2" 
                             onClick={() => handleOpenPayment(order)}
+                            disabled={loading}
                           >
                             <CreditCard className="h-4 w-4 mr-2" />
                             Processar Pagamento
@@ -264,7 +525,7 @@ const CheckoutPage = () => {
                 <p className="text-muted-foreground">
                   O caixa está fechado. Por favor, abra o caixa para processar pagamentos.
                 </p>
-                <Button className="mt-4" onClick={() => setIsCashRegisterOpen(true)}>
+                <Button className="mt-4" onClick={handleOpenCashRegister} disabled={loading}>
                   <Wallet className="h-4 w-4 mr-2" />
                   Abrir Caixa
                 </Button>
@@ -320,39 +581,109 @@ const CheckoutPage = () => {
           
           <div>
             <h2 className="text-lg font-semibold mb-4">Últimas Transações</h2>
-            <div className="space-y-2">
-              {dailyTransactions.map(transaction => (
-                <div 
-                  key={transaction.id} 
-                  className="bg-background border rounded-md p-3 flex justify-between items-center"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-muted p-2 rounded-full">
-                      {getPaymentIcon(transaction.method)}
+            {dailyTransactions.length > 0 ? (
+              <div className="space-y-2">
+                {dailyTransactions.map(transaction => (
+                  <div 
+                    key={transaction.id} 
+                    className="bg-background border rounded-md p-3 flex justify-between items-center"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-muted p-2 rounded-full">
+                        {getPaymentIcon(transaction.method)}
+                      </div>
+                      <div>
+                        <div className="font-medium">Pedido #{transaction.orderId}</div>
+                        <div className="text-sm text-muted-foreground">{transaction.method}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-medium">Pedido #{transaction.orderId}</div>
-                      <div className="text-sm text-muted-foreground">{transaction.method}</div>
+                    <div className="text-right">
+                      <div className="font-bold">R$ {transaction.amount.toFixed(2).replace('.', ',')}</div>
+                      <div className="text-xs text-muted-foreground">{transaction.time}</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold">R$ {transaction.amount.toFixed(2).replace('.', ',')}</div>
-                    <div className="text-xs text-muted-foreground">{transaction.time}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">
+                Nenhuma transação registrada hoje.
+              </div>
+            )}
           </div>
         </div>
       </div>
       
-      {/* Dialog de Pagamento */}
+      <Dialog open={showRegisterDialog} onOpenChange={setShowRegisterDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {isCashRegisterOpen ? "Fechar Caixa" : "Abrir Caixa"}
+            </DialogTitle>
+            <DialogDescription>
+              {isCashRegisterOpen 
+                ? "Informe o valor final em dinheiro para fechar o caixa"
+                : "Informe o valor inicial em dinheiro para abrir o caixa"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="cashAmount">
+                {isCashRegisterOpen ? "Valor em dinheiro no caixa:" : "Valor inicial:"}
+              </Label>
+              <Input
+                id="cashAmount"
+                type="number"
+                step="0.01"
+                min="0"
+                value={isCashRegisterOpen ? closingAmount : openingAmount}
+                onChange={(e) => isCashRegisterOpen 
+                  ? setClosingAmount(e.target.value)
+                  : setOpeningAmount(e.target.value)
+                }
+                placeholder="0,00"
+              />
+              
+              {isCashRegisterOpen && (
+                <div className="mt-2 text-sm">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Valor esperado:</span>
+                    <span>R$ {registerSummary.expectedCash.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                  {parseFloat(closingAmount) !== 0 && (
+                    <div className="flex justify-between font-medium mt-1">
+                      <span>Diferença:</span>
+                      <span className={parseFloat(closingAmount) < registerSummary.expectedCash ? 'text-red-500' : ''}>
+                        R$ {(parseFloat(closingAmount) - registerSummary.expectedCash).toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRegisterDialog(false)} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={isCashRegisterOpen ? handleConfirmCloseRegister : handleConfirmOpenRegister}
+              disabled={loading}
+            >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isCashRegisterOpen ? "Fechar Caixa" : "Abrir Caixa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Processar Pagamento</DialogTitle>
             <DialogDescription>
-              {selectedOrder && `Mesa ${selectedOrder.tableNumber} - Pedido #${selectedOrder.id}`}
+              {selectedOrder && `${selectedOrder.tableNumber ? `Mesa ${selectedOrder.tableNumber}` : 'Delivery'} - Pedido #${selectedOrder.id.substring(0, 6)}`}
             </DialogDescription>
           </DialogHeader>
           {selectedOrder && (
@@ -367,7 +698,7 @@ const CheckoutPage = () => {
                 ))}
                 <div className="border-t mt-2 pt-2 font-bold flex justify-between">
                   <span>Total</span>
-                  <span>R$ {selectedOrder.totalAmount.toFixed(2).replace('.', ',')}</span>
+                  <span>R$ {selectedOrder.total.toFixed(2).replace('.', ',')}</span>
                 </div>
               </div>
               
@@ -413,7 +744,7 @@ const CheckoutPage = () => {
                     placeholder="Ex: 70,00"
                   />
                   
-                  {amountReceived && parseFloat(amountReceived) >= selectedOrder.totalAmount && (
+                  {amountReceived && parseFloat(amountReceived) >= selectedOrder.total && (
                     <div className="bg-muted p-2 rounded-md mt-2">
                       <div className="flex justify-between text-sm font-medium">
                         <span>Troco:</span>
@@ -426,10 +757,11 @@ const CheckoutPage = () => {
             </div>
           )}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setIsPaymentDialogOpen(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button type="button" onClick={handleProcessPayment}>
+            <Button type="button" onClick={handleProcessPayment} disabled={loading || !paymentMethod}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {paymentMethod ? (
                 <>
                   <Receipt className="h-4 w-4 mr-2" />

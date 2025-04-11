@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -107,7 +108,11 @@ const FirebaseSetupPage = () => {
   "prepTime": number, // Tempo de preparo em minutos
   "featured": boolean, // Se o produto está em destaque
   "allergens": array, // (Opcional) Array de alérgenos
-  "nutritionalInfo": object // (Opcional) Informações nutricionais
+  "nutritionalInfo": object, // (Opcional) Informações nutricionais
+  "stockManagement": boolean, // Se o produto tem gestão de estoque
+  "stockQuantity": number, // Quantidade atual em estoque
+  "stockReserved": number, // Quantidade reservada por pedidos pendentes
+  "stockMinimum": number // Quantidade mínima de alerta
 }`}
                   </Code>
                 </ScrollArea>
@@ -143,12 +148,48 @@ const FirebaseSetupPage = () => {
   "total": number, // Valor total do pedido
   "status": string, // Status do pedido: "pending", "preparing", "ready", "delivered", "canceled"
   "paymentMethod": string, // Método de pagamento (se aplicável)
-  "paymentStatus": string, // Status do pagamento (se aplicável)
+  "paymentStatus": string, // Status do pagamento: "pending", "paid", "refunded", "failed"
+  "paymentId": string, // ID da transação de pagamento (se aplicável)
   "delivery": boolean, // Se é para entrega
   "address": string, // Endereço de entrega (se aplicável)
   "createdAt": timestamp, // Data/hora de criação
   "updatedAt": timestamp, // Data/hora da última atualização
   "completedAt": timestamp // Data/hora de finalização (opcional)
+}`}
+                  </Code>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+            
+            {/* Estrutura da coleção de pagamentos */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Coleção: payments</CardTitle>
+                <CardDescription>
+                  Transações de pagamento realizadas
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-72">
+                  <Code className="text-sm">
+{`// Estrutura da coleção "payments"
+{
+  "id": string, // ID único do pagamento (ex: "payment_1632456789")
+  "orderId": string, // ID do pedido relacionado
+  "userId": string, // ID do usuário que efetuou o pagamento (se aplicável)
+  "staffId": string, // ID do funcionário que processou o pagamento (se aplicável)
+  "method": string, // Método de pagamento: "cash", "credit", "debit", "pix", "app"
+  "amount": number, // Valor pago
+  "tip": number, // Valor da gorjeta (se aplicável)
+  "taxes": number, // Valor de impostos/taxas (se aplicável)
+  "serviceCharge": number, // Valor da taxa de serviço (se aplicável)
+  "amountReceived": number, // Valor recebido (para pagamentos em dinheiro)
+  "change": number, // Troco (para pagamentos em dinheiro)
+  "status": string, // Status: "completed", "refunded", "canceled", "failed"
+  "reference": string, // Referência externa (NSU, autorização, etc.)
+  "notes": string, // Observações adicionais
+  "createdAt": timestamp, // Data/hora da transação
+  "updatedAt": timestamp // Data/hora da última atualização
 }`}
                   </Code>
                 </ScrollArea>
@@ -224,6 +265,74 @@ const FirebaseSetupPage = () => {
   "permitirReservas": boolean, // Se permite reservas de mesa
   "tempoEstimadoEntrega": string, // Tempo estimado para entrega (ex: "30-45")
   "raioEntrega": string // Raio de entrega em km
+}`}
+                  </Code>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+            
+            {/* Estrutura da coleção de movimentações de estoque */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Coleção: inventory_transactions</CardTitle>
+                <CardDescription>
+                  Movimentações de entrada e saída do estoque
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-72">
+                  <Code className="text-sm">
+{`// Estrutura da coleção "inventory_transactions"
+{
+  "id": string, // ID único da transação
+  "productId": string, // ID do produto
+  "type": string, // Tipo: "in" (entrada), "out" (saída), "reserved" (reservado), "released" (liberado)
+  "quantity": number, // Quantidade movimentada
+  "orderId": string, // ID do pedido relacionado (se aplicável)
+  "reason": string, // Motivo: "purchase", "sale", "adjustment", "return", "loss"
+  "notes": string, // Observações adicionais
+  "userId": string, // ID do usuário que realizou a movimentação
+  "previousQuantity": number, // Quantidade em estoque antes da movimentação
+  "newQuantity": number, // Quantidade em estoque após a movimentação
+  "createdAt": timestamp // Data/hora da movimentação
+}`}
+                  </Code>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+            
+            {/* Estrutura do registro de caixa */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Coleção: register_sessions</CardTitle>
+                <CardDescription>
+                  Sessões de abertura e fechamento de caixa
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-72">
+                  <Code className="text-sm">
+{`// Estrutura da coleção "register_sessions"
+{
+  "id": string, // ID único da sessão
+  "userId": string, // ID do usuário/operador
+  "status": string, // Status: "open", "closed"
+  "openingAmount": number, // Valor inicial do caixa
+  "expectedClosingAmount": number, // Valor esperado no fechamento (calculado)
+  "actualClosingAmount": number, // Valor real contado no fechamento
+  "difference": number, // Diferença entre esperado e real
+  "openedAt": timestamp, // Data/hora de abertura
+  "closedAt": timestamp, // Data/hora de fechamento
+  "notes": string, // Observações adicionais
+  "transactions": [
+    {
+      "paymentId": string, // ID do pagamento
+      "orderId": string, // ID do pedido
+      "method": string, // Método de pagamento
+      "amount": number, // Valor da transação
+      "timestamp": timestamp // Data/hora da transação
+    }
+  ] // Transações realizadas durante a sessão
 }`}
                   </Code>
                 </ScrollArea>
@@ -307,6 +416,28 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     
+    // Regras para pagamentos
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && (
+        isStaff() || 
+        request.auth.uid == resource.data.userId
+      );
+      allow create, update: if isStaff();
+      allow delete: if isAdmin();
+    }
+    
+    // Regras para transações de estoque
+    match /inventory_transactions/{transactionId} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+    
+    // Regras para sessões de caixa
+    match /register_sessions/{sessionId} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+    
     // Regras para configurações do estabelecimento
     match /configuracao/{configId} {
       allow read: if true; // Público para leitura
@@ -363,7 +494,7 @@ export default app;`}
             
             <Card>
               <CardHeader>
-                <CardTitle>Comandos para criar a estrutura do banco de dados</CardTitle>
+                <CardTitle>Inicialização de Dados</CardTitle>
                 <CardDescription>
                   Código para inicializar as coleções no Firebase
                 </CardDescription>
@@ -371,7 +502,7 @@ export default app;`}
               <CardContent>
                 <ScrollArea className="h-96">
                   <Code className="text-sm">
-{`// Código para criar o documento de configuração da lanchonete
+{`// Código para inicializar as coleções básicas
 import { setDoc, doc } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -408,8 +539,93 @@ async function inicializarConfiguracao() {
   }
 }
 
-// Chame esta função para criar o documento
-// inicializarConfiguracao();`}
+// Inicializar funções de gerenciamento de estoque
+async function criarFuncoesEstoque() {
+  // Estas funções devem ser implementadas na sua lógica de negócio
+  
+  // Exemplo de função para atualizar estoque
+  const atualizarEstoque = async (produtoId, quantidade, tipo, motivo, orderId = null) => {
+    // 1. Buscar produto atual
+    // 2. Calcular nova quantidade baseada no tipo (in, out, reserved, released)
+    // 3. Atualizar documento do produto
+    // 4. Criar documento de transação de estoque
+  };
+  
+  // Exemplo de função para reservar estoque quando um pedido é criado
+  const reservarEstoque = async (orderId, itens) => {
+    // Para cada item do pedido:
+    // 1. Buscar produto
+    // 2. Verificar se há estoque suficiente
+    // 3. Atualizar campo stockReserved do produto
+    // 4. Criar documento de transação tipo "reserved"
+  };
+  
+  // Exemplo de função para liberar estoque reservado (pedido cancelado)
+  const liberarReservaEstoque = async (orderId) => {
+    // 1. Buscar pedido
+    // 2. Para cada item, reverter a reserva
+    // 3. Atualizar campos dos produtos
+    // 4. Criar documentos de transação tipo "released"
+  };
+  
+  // Exemplo de função para finalizar saída do estoque (pedido concluído)
+  const finalizarSaidaEstoque = async (orderId) => {
+    // 1. Buscar pedido
+    // 2. Para cada item, converter reserva em saída definitiva
+    // 3. Atualizar campos dos produtos (diminuir stockReserved e stockQuantity)
+    // 4. Criar documentos de transação tipo "out"
+  };
+}
+
+// Função para criar uma nova sessão de caixa
+async function abrirSessaoCaixa(usuarioId, valorInicial, observacoes = "") {
+  const novaSessao = {
+    userId: usuarioId,
+    status: "open",
+    openingAmount: valorInicial,
+    expectedClosingAmount: valorInicial,
+    actualClosingAmount: 0,
+    difference: 0,
+    openedAt: new Date(),
+    closedAt: null,
+    notes: observacoes,
+    transactions: []
+  };
+  
+  try {
+    const sessaoRef = doc(db, "register_sessions", \`session_\${Date.now()}\`);
+    await setDoc(sessaoRef, novaSessao);
+    console.log("Sessão de caixa aberta com sucesso!");
+    return sessaoRef.id;
+  } catch (error) {
+    console.error("Erro ao abrir sessão de caixa:", error);
+    throw error;
+  }
+}
+
+// Função para fechar uma sessão de caixa
+async function fecharSessaoCaixa(sessaoId, valorFinal, observacoes = "") {
+  try {
+    const sessaoRef = doc(db, "register_sessions", sessaoId);
+    // Buscar dados atuais da sessão
+    // Calcular diferença entre esperado e real
+    // Atualizar documento com:
+    // - status: "closed"
+    // - actualClosingAmount: valorFinal
+    // - difference: calculado
+    // - closedAt: new Date()
+    // - notes: observacoes adicionais
+    
+    console.log("Sessão de caixa fechada com sucesso!");
+  } catch (error) {
+    console.error("Erro ao fechar sessão de caixa:", error);
+    throw error;
+  }
+}
+
+// Chame estas funções conforme necessário para configurar seu banco de dados
+// inicializarConfiguracao();
+// criarFuncoesEstoque();`}
                   </Code>
                 </ScrollArea>
               </CardContent>
