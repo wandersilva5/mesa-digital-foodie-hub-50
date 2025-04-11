@@ -15,6 +15,7 @@ import {
   Settings,
   Menu,
   Store,
+  Database,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile"; 
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,12 @@ export const Sidebar = () => {
       name: "Config. Lanchonete",
       path: "/configuracao-lanchonete",
       icon: <Store className="h-5 w-5" />,
+      roles: ["admin"],
+    },
+    {
+      name: "Firebase Admin",
+      path: "/firebase-admin",
+      icon: <Database className="h-5 w-5" />,
       roles: ["admin"],
     },
   ];
@@ -171,3 +178,4 @@ export const Sidebar = () => {
     </aside>
   );
 };
+

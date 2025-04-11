@@ -1,10 +1,12 @@
 
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Users, Coffee, CalendarDays, LayoutGrid, ShoppingBag, Settings } from "lucide-react";
+import { Database, Users, Coffee, CalendarDays, LayoutGrid, ShoppingBag, Settings, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUser } from "@/contexts/UserContext";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import UsersCollection from "@/components/firebase-admin/UsersCollection";
 import CategoriesCollection from "@/components/firebase-admin/CategoriesCollection";
 import ProductsCollection from "@/components/firebase-admin/ProductsCollection";
@@ -12,6 +14,34 @@ import TablesCollection from "@/components/firebase-admin/TablesCollection";
 import OrdersCollection from "@/components/firebase-admin/OrdersCollection";
 
 const FirebaseAdminPage: React.FC = () => {
+  const { user, hasRole } = useUser();
+  const navigate = useNavigate();
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Check if user is admin
+    if (!user || !hasRole(["admin"])) {
+      // Redirect to login if not authenticated or not admin
+      navigate("/login");
+    } else {
+      setIsAdmin(true);
+    }
+  }, [user, hasRole, navigate]);
+
+  if (!isAdmin) {
+    return (
+      <div className="container mx-auto py-6">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Acesso Negado</AlertTitle>
+          <AlertDescription>
+            Você não tem permissão para acessar esta página. Redirecionando...
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">

@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "@/lib/firebase";
 import { collection, doc, setDoc, getDocs, writeBatch } from "firebase/firestore";
@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, Database, Check, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { useUser } from "@/contexts/UserContext";
 
 // Collection types
 interface Category {
@@ -74,6 +75,18 @@ const FirebaseSetupPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user, hasRole } = useUser();
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Check if user is admin
+    if (!user || !hasRole(["admin"])) {
+      // Redirect to login if not authenticated or not admin
+      navigate("/login");
+    } else {
+      setIsAdmin(true);
+    }
+  }, [user, hasRole, navigate]);
 
   // Sample data for initialization
   const sampleCategories: Category[] = [
@@ -302,6 +315,20 @@ const FirebaseSetupPage: React.FC = () => {
   };
 
   const allInitialized = Object.values(setupStatus).every(status => status);
+
+  if (!isAdmin) {
+    return (
+      <div className="container mx-auto py-8">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Acesso Negado</AlertTitle>
+          <AlertDescription>
+            Você não tem permissão para acessar esta página. Redirecionando...
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8">
