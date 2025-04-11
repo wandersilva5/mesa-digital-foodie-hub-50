@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { useUser } from "@/contexts/UserContext";
 import { useNavigate } from "react-router-dom";
-import { LucideGoogle } from "lucide-react";
+import { CircleUser } from "lucide-react";
 
 const GoogleLoginButton = () => {
   const { loginWithGoogle, loading } = useUser();
@@ -32,7 +32,7 @@ const GoogleLoginButton = () => {
       className="w-full flex items-center justify-center gap-2 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-800 border-gray-300 shadow-sm"
       disabled={loading}
     >
-      <LucideGoogle size={20} className="text-red-500" />
+      <CircleUser size={20} className="text-red-500" />
       <span>Entrar com Google</span>
     </Button>
   );
