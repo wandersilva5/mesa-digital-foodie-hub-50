@@ -28,7 +28,7 @@ export const useOrderManagement = ({ onStatusUpdate }: UseOrderManagementProps =
       const result = await updateOrderStatus(
         orderId, 
         newStatus as "pending" | "preparing" | "ready" | "delivered" | "canceled",
-        user.uid
+        user.id // Changed from user.uid to user.id
       );
       
       if (result) {

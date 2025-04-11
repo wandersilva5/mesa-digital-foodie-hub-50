@@ -57,6 +57,27 @@ interface Transaction {
   time: string;
 }
 
+interface RegisterSession {
+  id: string;
+  status: string;
+  openingAmount: number;
+  expectedClosingAmount: number;
+  actualClosingAmount: number;
+  difference: number;
+  openedAt: any;
+  closedAt: any;
+  notes: string;
+  transactions: Array<{
+    paymentId: string;
+    orderId: string;
+    method: string;
+    amount: number;
+    timestamp: any;
+  }>;
+  updatedAt: any;
+  userId: string;
+}
+
 const CheckoutPage = () => {
   const { toast } = useToast();
   const { user } = useUser();
@@ -94,7 +115,7 @@ const CheckoutPage = () => {
   const checkRegisterStatus = async () => {
     try {
       setLoading(true);
-      const activeSession = await getActiveRegisterSession();
+      const activeSession = await getActiveRegisterSession() as RegisterSession | null;
       
       if (activeSession) {
         setIsCashRegisterOpen(true);
@@ -213,7 +234,7 @@ const CheckoutPage = () => {
       await processPayment({
         orderId: selectedOrder.id,
         userId: selectedOrder.id,
-        staffId: user.uid,
+        staffId: user.id,
         method: paymentMethod as any,
         amount: selectedOrder.total,
         amountReceived: paymentMethod === "cash" ? received : undefined,
@@ -299,7 +320,7 @@ const CheckoutPage = () => {
     
     try {
       const amount = parseFloat(openingAmount);
-      const sessionId = await openRegisterSession(user.uid, amount, "Abertura manual de caixa");
+      const sessionId = await openRegisterSession(user.id, amount, "Abertura manual de caixa");
       
       setActiveSessionId(sessionId);
       setIsCashRegisterOpen(true);

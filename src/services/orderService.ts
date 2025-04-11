@@ -1,4 +1,3 @@
-
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, Timestamp, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { reserveStockForOrder, releaseReservedStock, finalizeStockReduction } from "./inventoryService";
@@ -183,7 +182,8 @@ export const getOrdersByStatus = async (status: string | string[]) => {
     
     const orders: Order[] = [];
     querySnapshot.forEach((doc) => {
-      orders.push({ id: doc.id, ...doc.data() } as Order);
+      const data = doc.data();
+      orders.push({ id: doc.id, ...data } as Order);
     });
     
     return orders;
