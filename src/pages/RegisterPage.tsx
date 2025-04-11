@@ -9,6 +9,7 @@ import { useUser } from "@/contexts/UserContext";
 import { UserRole } from "@/contexts/UserContext";
 import { Loader2, Coffee, User, Lock, Mail, UserPlus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import GoogleLoginButton from "@/components/auth/GoogleLoginButton";
 
 const RegisterPage = () => {
   const { register, loading } = useUser();
@@ -53,9 +54,27 @@ const RegisterPage = () => {
       navigate("/login");
     } catch (error) {
       console.error("Erro ao registrar:", error);
+      
+      // Exibir mensagem de erro mais específica
+      let errorMessage = "Não foi possível concluir o registro. ";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("permission")) {
+          errorMessage += "Erro de permissão no Firebase. Por favor, verifique as regras de segurança do Firestore.";
+        } else if (error.message.includes("email-already-in-use")) {
+          errorMessage += "Este email já está em uso.";
+        } else if (error.message.includes("invalid-email")) {
+          errorMessage += "Email inválido.";
+        } else if (error.message.includes("weak-password")) {
+          errorMessage += "A senha é muito fraca. Use pelo menos 6 caracteres.";
+        } else {
+          errorMessage += error.message;
+        }
+      }
+      
       toast({
         title: "Erro",
-        description: "Não foi possível concluir o registro. Tente novamente.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -179,6 +198,14 @@ const RegisterPage = () => {
                     "Criar conta"
                   )}
                 </Button>
+                
+                <div className="relative flex items-center justify-center py-3">
+                  <div className="flex-grow border-t border-gray-300"></div>
+                  <span className="flex-shrink mx-4 text-gray-500 text-sm">ou</span>
+                  <div className="flex-grow border-t border-gray-300"></div>
+                </div>
+                
+                <GoogleLoginButton />
                 
                 <div className="text-center pt-4">
                   <Button 

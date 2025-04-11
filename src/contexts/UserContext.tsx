@@ -99,6 +99,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error("Erro ao inicializar usuários:", err);
       setError((err as Error).message);
+      
+      // Usar usuários iniciais mesmo se houver erro no Firestore
+      setUsers(initialUsers);
     }
   };
 
@@ -111,15 +114,40 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           setFirebaseUser(authUser);
           
           // Verificar se o usuário existe no Firestore
-          const userDoc = await getDoc(doc(db, "users", authUser.uid));
-          
-          if (userDoc.exists()) {
-            // Usuário existente
-            const userData = userDoc.data() as User;
-            setUser({ ...userData, id: authUser.uid });
-          } else {
-            // Novo usuário (provavelmente do Google)
-            const newUser: User = {
+          try {
+            const userDoc = await getDoc(doc(db, "users", authUser.uid));
+            
+            if (userDoc.exists()) {
+              // Usuário existente
+              const userData = userDoc.data() as User;
+              setUser({ ...userData, id: authUser.uid });
+            } else {
+              // Novo usuário (provavelmente do Google)
+              const newUser: User = {
+                id: authUser.uid,
+                name: authUser.displayName || 'Usuário',
+                email: authUser.email || undefined,
+                role: 'customer', // Padrão para novos usuários
+                isGoogleUser: authUser.providerData[0]?.providerId === 'google.com'
+              };
+              
+              try {
+                await setDoc(doc(db, "users", authUser.uid), newUser);
+              } catch (error) {
+                console.error("Erro ao salvar novo usuário no Firestore:", error);
+                // Continuar mesmo com erro no Firestore
+              }
+              
+              setUser(newUser);
+              
+              // Adicionar à lista de usuários
+              setUsers(prev => [...prev, newUser]);
+            }
+          } catch (error) {
+            console.error("Erro ao buscar usuário no Firestore:", error);
+            
+            // Se falhar, criar um usuário local com as informações do Firebase
+            const localUser: User = {
               id: authUser.uid,
               name: authUser.displayName || 'Usuário',
               email: authUser.email || undefined,
@@ -127,11 +155,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
               isGoogleUser: authUser.providerData[0]?.providerId === 'google.com'
             };
             
-            await setDoc(doc(db, "users", authUser.uid), newUser);
-            setUser(newUser);
-            
-            // Adicionar à lista de usuários
-            setUsers(prev => [...prev, newUser]);
+            setUser(localUser);
           }
         } else {
           setFirebaseUser(null);
@@ -201,6 +225,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     setError(null);
     try {
+      // Criar usuário no Firebase Authentication
       const result = await createUserWithEmailAndPassword(auth, email, password);
       const newUser: User = {
         id: result.user.uid,
@@ -209,7 +234,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         role,
       };
       
-      await setDoc(doc(db, "users", result.user.uid), newUser);
+      // Tentar salvar no Firestore, mas continuar mesmo se falhar
+      try {
+        await setDoc(doc(db, "users", result.user.uid), newUser);
+      } catch (firestoreError) {
+        console.error("Erro ao salvar usuário no Firestore:", firestoreError);
+        // Continuar mesmo com erro no Firestore
+      }
+      
+      // Adicionar o novo usuário à lista local de usuários
+      setUsers(prev => [...prev, newUser]);
       
       toast({
         title: "Sucesso",
