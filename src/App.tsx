@@ -22,7 +22,6 @@ import InventoryPage from "./pages/InventoryPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import DeliveryPage from "./pages/DeliveryPage";
 import UserManagementPage from "./pages/UserManagementPage";
-import ConfiguracaoPage from "./pages/ConfiguracaoPage";
 import ConfiguracaoLanchonetePage from "./pages/ConfiguracaoLanchonetePage";
 import FirebaseAdminPage from "./pages/FirebaseAdminPage";
 import FirebaseSetupPage from "./pages/FirebaseSetupPage";
@@ -130,14 +129,6 @@ const AppRoutes = () => {
           element={
             <RoleRoute allowedRoles={["admin"]}>
               <UserManagementPage />
-            </RoleRoute>
-          } 
-        />
-        <Route 
-          path="/configuracao" 
-          element={
-            <RoleRoute allowedRoles={["admin"]}>
-              <ConfiguracaoPage />
             </RoleRoute>
           } 
         />

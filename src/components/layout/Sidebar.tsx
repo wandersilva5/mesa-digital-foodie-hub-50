@@ -78,12 +78,6 @@ export const Sidebar = () => {
       roles: ["admin"],
     },
     {
-      name: "Configuração",
-      path: "/configuracao",
-      icon: <Settings className="h-5 w-5" />,
-      roles: ["admin"],
-    },
-    {
       name: "Config. Lanchonete",
       path: "/configuracao-lanchonete",
       icon: <Store className="h-5 w-5" />,
