@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,19 +10,19 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { ColorPicker } from "@/components/configuracao/ColorPicker";
 import { useEstabelecimentoConfig } from "@/hooks/useEstabelecimentoConfig";
-import { SaveIcon, ImageIcon, PaletteIcon, SettingsIcon, InfoIcon } from "lucide-react";
+import { SaveIcon, ImageIcon, PaletteIcon, SettingsIcon, InfoIcon, Loader2 } from "lucide-react";
 
 const ConfiguracaoLanchonetePage = () => {
   const { toast } = useToast();
-  const { config, updateConfig } = useEstabelecimentoConfig();
+  const { config, updateConfig, saveConfig, uploadLogo, loading } = useEstabelecimentoConfig();
   
   const [formState, setFormState] = useState({
     nome: "",
     slogan: "",
     logoUrl: "",
-    corPrimaria: "",
-    corSecundaria: "",
-    corAcento: "",
+    corPrimaria: "#10b981",
+    corSecundaria: "#3b82f6",
+    corAcento: "#8b5cf6",
     endereco: "",
     telefone: "",
     horarioFuncionamento: "",
@@ -34,24 +33,25 @@ const ConfiguracaoLanchonetePage = () => {
     raioEntrega: "5"
   });
 
-  // Carrega as configurações atuais quando o componente é montado
   useEffect(() => {
-    setFormState({
-      nome: config.nome || "",
-      slogan: config.slogan || "",
-      logoUrl: config.logoUrl || "",
-      corPrimaria: config.corPrimaria || "#FF9800",
-      corSecundaria: config.corSecundaria || "#4CAF50",
-      corAcento: config.corAcento || "#F44336",
-      endereco: config.endereco || "",
-      telefone: config.telefone || "",
-      horarioFuncionamento: config.horarioFuncionamento || "",
-      exibirTaxaServico: config.exibirTaxaServico !== undefined ? config.exibirTaxaServico : true,
-      valorTaxaServico: config.valorTaxaServico || "10",
-      permitirReservas: config.permitirReservas !== undefined ? config.permitirReservas : true,
-      tempoEstimadoEntrega: config.tempoEstimadoEntrega || "30-45",
-      raioEntrega: config.raioEntrega || "5"
-    });
+    if (config) {
+      setFormState({
+        nome: config.nome || "",
+        slogan: config.slogan || "",
+        logoUrl: config.logoUrl || "",
+        corPrimaria: config.corPrimaria || "#10b981",
+        corSecundaria: config.corSecundaria || "#3b82f6",
+        corAcento: config.corAcento || "#8b5cf6",
+        endereco: config.endereco || "",
+        telefone: config.telefone || "",
+        horarioFuncionamento: config.horarioFuncionamento || "",
+        exibirTaxaServico: config.exibirTaxaServico !== undefined ? config.exibirTaxaServico : true,
+        valorTaxaServico: config.valorTaxaServico || "10",
+        permitirReservas: config.permitirReservas !== undefined ? config.permitirReservas : true,
+        tempoEstimadoEntrega: config.tempoEstimadoEntrega || "30-45",
+        raioEntrega: config.raioEntrega || "5"
+      });
+    }
   }, [config]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -67,32 +67,27 @@ const ConfiguracaoLanchonetePage = () => {
     setFormState(prev => ({ ...prev, [tipo]: cor }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     updateConfig(formState);
-    
-    toast({
-      title: "Configurações salvas",
-      description: "As alterações foram aplicadas com sucesso ao seu estabelecimento.",
-    });
+    await saveConfig();
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Simular upload de imagem com URL local
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setFormState(prev => ({ 
-            ...prev, 
-            logoUrl: event.target.result as string 
-          }));
-        }
-      };
-      reader.readAsDataURL(file);
+      await uploadLogo(file);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Carregando configurações...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -355,7 +350,6 @@ const ConfiguracaoLanchonetePage = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-8">
-                  {/* Header Preview */}
                   <div 
                     className="rounded-lg shadow-md overflow-hidden"
                     style={{ 
@@ -392,7 +386,6 @@ const ConfiguracaoLanchonetePage = () => {
                     </div>
                   </div>
                   
-                  {/* Buttons Preview */}
                   <div className="p-6 border rounded-lg space-y-4">
                     <h3 className="font-medium mb-2">Elementos de Interface</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -469,9 +462,18 @@ const ConfiguracaoLanchonetePage = () => {
         </Tabs>
         
         <div className="mt-6 flex justify-end">
-          <Button type="submit">
-            <SaveIcon className="h-4 w-4 mr-2" />
-            Salvar Configurações
+          <Button type="submit" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                <SaveIcon className="h-4 w-4 mr-2" />
+                Salvar Configurações
+              </>
+            )}
           </Button>
         </div>
       </form>

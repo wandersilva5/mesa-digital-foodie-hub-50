@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useFirebase } from "@/contexts/FirebaseContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -33,17 +34,17 @@ interface EstabelecimentoConfigContextType {
 }
 
 const defaultConfig: EstabelecimentoConfig = {
-  nome: "Sabor Express",
-  slogan: "O melhor sabor da cidade",
+  nome: "",
+  slogan: "",
   logoUrl: "",
   cores: {
     primary: "#10b981",
     secondary: "#3b82f6",
     accent: "#8b5cf6",
   },
-  corPrimaria: "#FF9800",
-  corSecundaria: "#4CAF50",
-  corAcento: "#F44336",
+  corPrimaria: "#10b981",
+  corSecundaria: "#3b82f6",
+  corAcento: "#8b5cf6",
   endereco: "",
   telefone: "",
   horarioFuncionamento: "",
@@ -65,6 +66,7 @@ export const EstabelecimentoConfigProvider = ({ children }: { children: ReactNod
   useEffect(() => {
     const loadConfig = async () => {
       try {
+        setLoading(true);
         const data = await getEstabelecimentoConfig();
         setConfig(data);
       } catch (err) {
@@ -97,12 +99,14 @@ export const EstabelecimentoConfigProvider = ({ children }: { children: ReactNod
         title: "Sucesso",
         description: "Configurações salvas com sucesso",
       });
+      return Promise.resolve();
     } catch (err) {
       toast({
         title: "Erro",
         description: "Não foi possível salvar as configurações",
         variant: "destructive",
       });
+      return Promise.reject(err);
     } finally {
       setLoading(false);
     }

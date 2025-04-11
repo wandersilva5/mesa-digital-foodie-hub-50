@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -196,7 +195,7 @@ const FirebaseSetupPage = () => {
             {/* Estrutura da configuração do estabelecimento */}
             <Card>
               <CardHeader>
-                <CardTitle>Coleção: establishment</CardTitle>
+                <CardTitle>Coleção: configuracao</CardTitle>
                 <CardDescription>
                   Configurações do estabelecimento
                 </CardDescription>
@@ -204,62 +203,27 @@ const FirebaseSetupPage = () => {
               <CardContent>
                 <ScrollArea className="h-72">
                   <Code className="text-sm">
-{`// Estrutura da coleção "establishment" (geralmente apenas um documento)
+{`// Estrutura da coleção "configuracao" (documento "estabelecimento")
 {
-  "id": string, // ID único (geralmente "config" ou ID do estabelecimento)
-  "name": string, // Nome do estabelecimento
-  "description": string, // Descrição do estabelecimento
-  "logo": string, // URL do logo
-  "coverImage": string, // URL da imagem de capa
-  "colors": {
-    "primary": string, // Cor primária (ex: "#FF9800")
-    "secondary": string, // Cor secundária (ex: "#4CAF50")
-    "accent": string // Cor de destaque (ex: "#F44336")
+  "nome": string, // Nome do estabelecimento
+  "slogan": string, // Slogan ou descrição curta
+  "logoUrl": string, // URL da imagem do logo
+  "corPrimaria": string, // Cor primária (hex, ex: "#10b981")
+  "corSecundaria": string, // Cor secundária (hex, ex: "#3b82f6")
+  "corAcento": string, // Cor de destaque (hex, ex: "#8b5cf6")
+  "cores": {
+    "primary": string, // Cor primária (mantido para compatibilidade)
+    "secondary": string, // Cor secundária (mantido para compatibilidade)
+    "accent": string // Cor de destaque (mantido para compatibilidade)
   },
-  "contact": {
-    "phone": string,
-    "email": string,
-    "website": string,
-    "socialMedia": {
-      "facebook": string,
-      "instagram": string,
-      "twitter": string
-    }
-  },
-  "address": {
-    "street": string,
-    "number": string,
-    "neighborhood": string,
-    "city": string,
-    "state": string,
-    "zipCode": string,
-    "coordinates": {
-      "latitude": number,
-      "longitude": number
-    }
-  },
-  "businessHours": [
-    {
-      "day": number, // 0 (domingo) a 6 (sábado)
-      "open": boolean, // Se está aberto neste dia
-      "openTime": string, // Horário de abertura (ex: "08:00")
-      "closeTime": string // Horário de fechamento (ex: "22:00")
-    }
-  ],
-  "delivery": {
-    "available": boolean,
-    "minimumOrderValue": number,
-    "deliveryFee": number,
-    "estimatedTimeMin": number,
-    "estimatedTimeMax": number,
-    "radius": number // Raio de entrega em km
-  },
-  "settings": {
-    "allowReservations": boolean,
-    "requireLoginForOrdering": boolean,
-    "autoAcceptOrders": boolean,
-    "taxRate": number
-  }
+  "endereco": string, // Endereço completo
+  "telefone": string, // Telefone de contato
+  "horarioFuncionamento": string, // Horário de funcionamento (texto)
+  "exibirTaxaServico": boolean, // Se deve exibir taxa de serviço
+  "valorTaxaServico": string, // Valor da taxa de serviço (%)
+  "permitirReservas": boolean, // Se permite reservas de mesa
+  "tempoEstimadoEntrega": string, // Tempo estimado para entrega (ex: "30-45")
+  "raioEntrega": string // Raio de entrega em km
 }`}
                   </Code>
                 </ScrollArea>
@@ -344,7 +308,7 @@ service cloud.firestore {
     }
     
     // Regras para configurações do estabelecimento
-    match /establishment/{configId} {
+    match /configuracao/{configId} {
       allow read: if true; // Público para leitura
       allow write: if isAdmin(); // Somente admin pode modificar
     }
@@ -392,6 +356,60 @@ export const auth = getAuth(app);
 export const storage = getStorage(app);
 
 export default app;`}
+                  </Code>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Comandos para criar a estrutura do banco de dados</CardTitle>
+                <CardDescription>
+                  Código para inicializar as coleções no Firebase
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-96">
+                  <Code className="text-sm">
+{`// Código para criar o documento de configuração da lanchonete
+import { setDoc, doc } from "firebase/firestore";
+import { db } from "./firebase";
+
+// Inicializar a configuração do estabelecimento
+async function inicializarConfiguracao() {
+  const configPadrao = {
+    nome: "",
+    slogan: "",
+    logoUrl: "",
+    corPrimaria: "#10b981",
+    corSecundaria: "#3b82f6",
+    corAcento: "#8b5cf6",
+    cores: {
+      primary: "#10b981",
+      secondary: "#3b82f6",
+      accent: "#8b5cf6",
+    },
+    endereco: "",
+    telefone: "",
+    horarioFuncionamento: "",
+    exibirTaxaServico: true,
+    valorTaxaServico: "10",
+    permitirReservas: true,
+    tempoEstimadoEntrega: "30-45",
+    raioEntrega: "5"
+  };
+
+  try {
+    // Criar o documento na coleção "configuracao" com ID "estabelecimento"
+    await setDoc(doc(db, "configuracao", "estabelecimento"), configPadrao);
+    console.log("Configuração do estabelecimento inicializada com sucesso!");
+  } catch (error) {
+    console.error("Erro ao inicializar configuração:", error);
+  }
+}
+
+// Chame esta função para criar o documento
+// inicializarConfiguracao();`}
                   </Code>
                 </ScrollArea>
               </CardContent>
