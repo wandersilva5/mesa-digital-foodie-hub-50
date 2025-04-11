@@ -1,3 +1,4 @@
+
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, Timestamp, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { reserveStockForOrder, releaseReservedStock, finalizeStockReduction } from "./inventoryService";
@@ -182,7 +183,8 @@ export const getOrdersByStatus = async (status: string | string[]) => {
     
     const orders: Order[] = [];
     querySnapshot.forEach((doc) => {
-      const data = doc.data();
+      // Fix: Explicitly cast doc.data() to a Record<string, any> type
+      const data = doc.data() as Record<string, any>;
       orders.push({ id: doc.id, ...data } as Order);
     });
     
@@ -210,7 +212,9 @@ export const getOrdersForCheckout = async () => {
     
     const orders: Order[] = [];
     querySnapshot.forEach((doc) => {
-      orders.push({ id: doc.id, ...doc.data() } as Order);
+      // Fix: Explicitly cast doc.data() to a Record<string, any> type
+      const data = doc.data() as Record<string, any>;
+      orders.push({ id: doc.id, ...data } as Order);
     });
     
     return orders;
