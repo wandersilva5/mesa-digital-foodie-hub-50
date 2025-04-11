@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,11 +6,11 @@ import { ArrowDown, ArrowUp, CreditCard, Loader2, ShoppingCart, UserCheck, Utens
 import { collection, query, where, getDocs, Timestamp, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { format } from "date-fns";
-import { useRouter } from "next/router";
+import { useNavigate } from "react-router-dom";
 
 const DashboardPage = () => {
   const { user } = useUser();
-  const router = useRouter();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     todaySales: 0,
     activeOrders: 0,
@@ -38,7 +37,6 @@ const DashboardPage = () => {
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const todayTimestamp = Timestamp.fromDate(startOfToday);
         
-        // Fetch today's sales
         const paymentsRef = collection(db, "payments");
         const paymentsQuery = query(
           paymentsRef,
@@ -53,7 +51,6 @@ const DashboardPage = () => {
           todaySales += payment.amount;
         });
         
-        // Fetch active orders
         const ordersRef = collection(db, "orders");
         const activeOrdersQuery = query(
           ordersRef,
@@ -61,14 +58,12 @@ const DashboardPage = () => {
         );
         const activeOrdersSnapshot = await getDocs(activeOrdersQuery);
         
-        // Fetch tables
         const tablesRef = collection(db, "tables");
         const tablesSnapshot = await getDocs(tablesRef);
         const occupiedTablesSnapshot = await getDocs(
           query(tablesRef, where("status", "==", "occupied"))
         );
         
-        // Fetch recent orders
         const recentOrdersQuery = query(
           ordersRef,
           orderBy("createdAt", "desc"),
@@ -88,7 +83,6 @@ const DashboardPage = () => {
           });
         });
         
-        // Count orders by status
         const pendingOrdersQuery = query(ordersRef, where("status", "==", "pending"));
         const pendingOrdersSnapshot = await getDocs(pendingOrdersQuery);
         
@@ -105,7 +99,6 @@ const DashboardPage = () => {
         );
         const completedOrdersSnapshot = await getDocs(completedOrdersQuery);
         
-        // Count pending payments
         const pendingPaymentsQuery = query(
           ordersRef,
           where("status", "==", "delivered"),
@@ -113,7 +106,6 @@ const DashboardPage = () => {
         );
         const pendingPaymentsSnapshot = await getDocs(pendingPaymentsQuery);
         
-        // Update stats
         setStats({
           todaySales,
           activeOrders: activeOrdersSnapshot.size,
@@ -138,13 +130,11 @@ const DashboardPage = () => {
     
     fetchDashboardData();
     
-    // Set up a timer to refresh data every 5 minutes
     const intervalId = setInterval(fetchDashboardData, 5 * 60 * 1000);
     
     return () => clearInterval(intervalId);
   }, [user]);
   
-  // Cards de estatísticas com base na função do usuário
   const getStatCards = () => {
     if (loading) {
       return (
@@ -292,22 +282,22 @@ const DashboardPage = () => {
   const handleQuickAction = (action: string) => {
     switch(action) {
       case "gerenciar-mesas":
-        router.push("/tables");
+        navigate("/tables");
         break;
       case "verificar-estoque":
-        router.push("/inventory");
+        navigate("/inventory");
         break;
       case "adicionar-item-menu":
-        router.push("/menu");
+        navigate("/menu");
         break;
       case "criar-pedido":
-        router.push("/orders/new");
+        navigate("/orders/new");
         break;
       case "processar-pagamento":
-        router.push("/checkout");
+        navigate("/checkout");
         break;
       case "ver-fila-pedidos":
-        router.push("/orders");
+        navigate("/orders");
         break;
       default:
         console.log("Action not implemented:", action);
@@ -419,7 +409,6 @@ const DashboardPage = () => {
   );
 };
 
-// Componente de Card de Estatísticas
 const StatCard = ({ 
   title, 
   value, 
@@ -453,7 +442,6 @@ const StatCard = ({
   );
 };
 
-// Componente de Item de Pedido
 const OrderItem = ({ 
   table, 
   items, 
@@ -485,7 +473,6 @@ const OrderItem = ({
   );
 };
 
-// Componente de Ação Rápida
 const QuickAction = ({ label, onClick }: { label: string, onClick: () => void }) => {
   return (
     <Button variant="outline" className="w-full justify-start text-left" onClick={onClick}>
@@ -494,7 +481,6 @@ const QuickAction = ({ label, onClick }: { label: string, onClick: () => void })
   );
 };
 
-// Helper function to format relative time
 const formatTimeAgo = (date: Date) => {
   if (!date) return "";
   
