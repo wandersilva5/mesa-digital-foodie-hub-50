@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,6 +25,7 @@ import UserManagementPage from "./pages/UserManagementPage";
 import ConfiguracaoPage from "./pages/ConfiguracaoPage";
 import ConfiguracaoLanchonetePage from "./pages/ConfiguracaoLanchonetePage";
 import FirebaseAdminPage from "./pages/FirebaseAdminPage";
+import FirebaseSetupPage from "./pages/FirebaseSetupPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -152,6 +154,14 @@ const AppRoutes = () => {
           element={
             <RoleRoute allowedRoles={["admin"]}>
               <FirebaseAdminPage />
+            </RoleRoute>
+          } 
+        />
+        <Route 
+          path="/firebase-setup" 
+          element={
+            <RoleRoute allowedRoles={["admin"]}>
+              <FirebaseSetupPage />
             </RoleRoute>
           } 
         />

@@ -70,6 +70,16 @@ const initialUsers: User[] = [
   }
 ];
 
+// Hardcoded admin credentials
+const HARDCODED_ADMIN_EMAIL = "admin@foodiehub.com";
+const HARDCODED_ADMIN_PASSWORD = "44xmax01";
+const HARDCODED_ADMIN_USER: User = {
+  id: "hardcoded_admin",
+  name: "Administrador",
+  role: "admin",
+  email: HARDCODED_ADMIN_EMAIL
+};
+
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -179,6 +189,20 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     setError(null);
     try {
+      // Check for hardcoded admin credentials first
+      if (email === HARDCODED_ADMIN_EMAIL && password === HARDCODED_ADMIN_PASSWORD) {
+        // Set hardcoded admin user without Firebase authentication
+        setUser(HARDCODED_ADMIN_USER);
+        setFirebaseUser(null); // No Firebase user for hardcoded admin
+        toast({
+          title: "Sucesso",
+          description: "Admin login realizado com sucesso",
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Regular Firebase authentication for other users
       await signInWithEmailAndPassword(auth, email, password);
       toast({
         title: "Sucesso",
@@ -265,6 +289,17 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
+      // Clear hardcoded admin if that's the current user
+      if (user && user.id === HARDCODED_ADMIN_USER.id) {
+        setUser(null);
+        toast({
+          title: "Sucesso",
+          description: "Admin logout realizado com sucesso",
+        });
+        return;
+      }
+      
+      // Regular Firebase logout for other users
       await signOut(auth);
       setUser(null);
       toast({
