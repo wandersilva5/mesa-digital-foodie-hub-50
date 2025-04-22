@@ -5,27 +5,27 @@ interface InventoryTransaction {
   id?: string;
   productId: string;
   type: "in" | "out" | "reserved" | "released";
-  quantity: number;
+  currentStock: number;
   orderId?: string;
   reason: "purchase" | "sale" | "adjustment" | "return" | "loss";
   notes?: string;
   userId: string;
-  previousQuantity: number;
-  newQuantity: number;
+  previouscurrentStock: number;
+  newcurrentStock: number;
   createdAt?: Timestamp;
 }
 
 export interface InventoryItem {
   id: string;
-  name: string;
-  quantity: number;
-  unit: string;
-  minQuantity: number;
-  status: 'in_stock' | 'low_stock' | 'out_of_stock';
-  lastUpdated: Timestamp;
   category: string;
-  cost: number;
-  supplier?: string;
+  currentStock: string;
+  lastUpdated: Timestamp;
+  minStock: string;
+  name: string;
+  price: string;
+  status: 'in_stock' | 'low_stock' | 'out_of_stock';
+  unit: string;
+  cost?: number; // Added cost property
 }
 
 /**
@@ -33,7 +33,7 @@ export interface InventoryItem {
  */
 export const updateStock = async (
   productId: string,
-  quantity: number,
+  currentStock: number,
   type: "in" | "out" | "reserved" | "released",
   reason: "purchase" | "sale" | "adjustment" | "return" | "loss",
   userId: string,
@@ -58,45 +58,45 @@ export const updateStock = async (
     }
     
     // Calculate new quantities based on transaction type
-    let newStockQuantity = productData.stockQuantity || 0;
-    let newReservedQuantity = productData.stockReserved || 0;
+    let newStockcurrentStock = productData.stockcurrentStock || 0;
+    let newReservedcurrentStock = productData.stockReserved || 0;
     
     switch (type) {
       case "in":
         // Add to stock
-        newStockQuantity += quantity;
+        newStockcurrentStock += currentStock;
         break;
       case "out":
         // Remove from stock
-        if (newStockQuantity < quantity) {
+        if (newStockcurrentStock < currentStock) {
           throw new Error(`Not enough stock for product ${productId}`);
         }
-        newStockQuantity -= quantity;
+        newStockcurrentStock -= currentStock;
         break;
       case "reserved":
         // Move from available to reserved
-        if (newStockQuantity < quantity) {
+        if (newStockcurrentStock < currentStock) {
           throw new Error(`Not enough stock for product ${productId}`);
         }
-        newStockQuantity -= quantity;
-        newReservedQuantity += quantity;
+        newStockcurrentStock -= currentStock;
+        newReservedcurrentStock += currentStock;
         break;
       case "released":
         // Move from reserved back to available
-        if (newReservedQuantity < quantity) {
+        if (newReservedcurrentStock < currentStock) {
           throw new Error(`Not enough reserved stock for product ${productId}`);
         }
-        newReservedQuantity -= quantity;
-        newStockQuantity += quantity;
+        newReservedcurrentStock -= currentStock;
+        newStockcurrentStock += currentStock;
         break;
     }
     
-    const previousQuantity = productData.stockQuantity || 0;
+    const previouscurrentStock = productData.stockcurrentStock || 0;
     
     // Update the product
     await updateDoc(productRef, {
-      stockQuantity: newStockQuantity,
-      stockReserved: newReservedQuantity,
+      stockcurrentStock: newStockcurrentStock,
+      stockReserved: newReservedcurrentStock,
       updatedAt: Timestamp.now()
     });
     
@@ -104,13 +104,13 @@ export const updateStock = async (
     const transactionData: InventoryTransaction = {
       productId,
       type,
-      quantity,
+      currentStock,
       orderId,
       reason,
       notes,
       userId,
-      previousQuantity,
-      newQuantity: newStockQuantity,
+      previouscurrentStock,
+      newcurrentStock: newStockcurrentStock,
       createdAt: Timestamp.now()
     };
     
@@ -130,7 +130,7 @@ export const updateStock = async (
  */
 export const reserveStockForOrder = async (
   orderId: string,
-  items: { productId: string; quantity: number }[],
+  items: { productId: string; currentStock: number }[],
   userId: string
 ): Promise<boolean> => {
   try {
@@ -138,7 +138,7 @@ export const reserveStockForOrder = async (
     for (const item of items) {
       await updateStock(
         item.productId,
-        item.quantity,
+        item.currentStock,
         "reserved",
         "sale",
         userId,
@@ -176,7 +176,7 @@ export const releaseReservedStock = async (
     for (const item of items) {
       await updateStock(
         item.productId,
-        item.quantity,
+        item.currentStock,
         "released",
         "return",
         userId,
@@ -224,10 +224,10 @@ export const finalizeStockReduction = async (
       if (!productData.stockManagement) continue;
       
       // Update product: reduce reserved amount (stock was already reduced when reserved)
-      const newReservedQuantity = Math.max(0, (productData.stockReserved || 0) - item.quantity);
+      const newReservedcurrentStock = Math.max(0, (productData.stockReserved || 0) - item.currentStock);
       
       await updateDoc(productRef, {
-        stockReserved: newReservedQuantity,
+        stockReserved: newReservedcurrentStock,
         updatedAt: Timestamp.now()
       });
       
@@ -235,13 +235,13 @@ export const finalizeStockReduction = async (
       const transactionData: InventoryTransaction = {
         productId: item.productId,
         type: "out",
-        quantity: item.quantity,
+        currentStock: item.currentStock,
         orderId,
         reason: "sale",
         notes: `Final stock reduction for order ${orderId}`,
         userId,
-        previousQuantity: productData.stockReserved || 0,
-        newQuantity: newReservedQuantity,
+        previouscurrentStock: productData.stockReserved || 0,
+        newcurrentStock: newReservedcurrentStock,
         createdAt: Timestamp.now()
       };
       
@@ -282,26 +282,19 @@ export const getInventoryItems = async (): Promise<InventoryItem[]> => {
     const inventoryRef = collection(db, "inventory");
     const snapshot = await getDocs(inventoryRef);
     
-    const items = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        name: data.name || '',
-        quantity: Number(data.quantity) || 0,
-        unit: data.unit || 'un',
-        minQuantity: Number(data.minQuantity) || 0,
-        category: data.category || '',
-        cost: Number(data.cost) || 0,
-        supplier: data.supplier || '',
-        status: data.status || 'in_stock',
-        lastUpdated: data.lastUpdated || Timestamp.now()
-      } as InventoryItem;
-    });
-    
-    console.log("Processed inventory items:", items); // Debug log
-    return items;
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      name: doc.data().name || '',
+      currentStock: doc.data().currentStock || '0',
+      price: doc.data().price || '',
+      unit: doc.data().unit || 'un',
+      minStock: (doc.data().minStock !== undefined ? String(doc.data().minStock) : '0'),
+      category: doc.data().category || '',
+      lastUpdated: doc.data().lastUpdated || Timestamp.now(),
+      status: doc.data().status || 'in_stock',
+    }));
   } catch (error) {
-    console.error("Error in getInventoryItems:", error);
+    console.error("Error fetching inventory:", error);
     throw error;
   }
 };
@@ -313,11 +306,11 @@ export const addInventoryItem = async (item: Omit<InventoryItem, 'id'>): Promise
     // Garantir que os valores numéricos sejam numbers
     const newItem = {
       ...item,
-      quantity: Number(item.quantity) || 0,
-      minQuantity: Number(item.minQuantity) || 0,
+      currentStock: Number(item.currentStock) || 0,
+      minStock: Number(item.minStock) || 0,
       cost: Number(item.cost) || 0,
       lastUpdated: Timestamp.now(),
-      status: calculateStatus(Number(item.quantity) || 0, Number(item.minQuantity) || 0)
+      status: calculateStatus(Number(item.currentStock) || 0, Number(item.minStock) || 0)
     };
     
     await setDoc(inventoryRef, newItem);
@@ -335,17 +328,17 @@ export const updateInventoryItem = async (id: string, updates: Partial<Inventory
     // Garantir que os valores numéricos sejam numbers
     const updatedData = {
       ...updates,
-      quantity: updates.quantity !== undefined ? Number(updates.quantity) : undefined,
-      minQuantity: updates.minQuantity !== undefined ? Number(updates.minQuantity) : undefined,
+      currentStock: updates.currentStock !== undefined ? Number(updates.currentStock) : undefined,
+      minStock: updates.minStock !== undefined ? Number(updates.minStock) : undefined,
       cost: updates.cost !== undefined ? Number(updates.cost) : undefined,
       lastUpdated: Timestamp.now(),
     };
 
-    // Calcular status apenas se quantity foi atualizada
-    if (updatedData.quantity !== undefined) {
+    // Calcular status apenas se currentStock foi atualizada
+    if (updatedData.currentStock !== undefined) {
       updatedData.status = calculateStatus(
-        updatedData.quantity,
-        updatedData.minQuantity || 0
+        updatedData.currentStock,
+        updatedData.minStock || 0
       );
     }
     
@@ -365,15 +358,15 @@ export const deleteInventoryItem = async (id: string): Promise<void> => {
   }
 };
 
-export const restockItem = async (id: string, quantity: number): Promise<void> => {
+export const restockItem = async (id: string, currentStock: number): Promise<void> => {
   try {
     const itemRef = doc(db, "inventory", id);
     const item = (await getDoc(itemRef)).data() as InventoryItem;
     
     const updatedData = {
-      quantity: Number(item.quantity) + Number(quantity),
+      currentStock: Number(item.currentStock) + Number(currentStock),
       lastUpdated: Timestamp.now(),
-      status: calculateStatus(Number(item.quantity) + Number(quantity), item.minQuantity)
+      status: calculateStatus(Number(item.currentStock) + Number(currentStock), Number(item.minStock) || 0)
     };
 
     await updateDoc(itemRef, updatedData);
@@ -383,8 +376,63 @@ export const restockItem = async (id: string, quantity: number): Promise<void> =
   }
 };
 
-const calculateStatus = (quantity: number, minQuantity: number): InventoryItem['status'] => {
-  if (quantity <= 0) return 'out_of_stock';
-  if (quantity <= minQuantity) return 'low_stock';
+export const handleRestock = async (itemId: string, currentStock: number) => {
+  const itemRef = doc(db, "inventory", itemId);
+  const itemSnap = await getDoc(itemRef);
+  
+  if (!itemSnap.exists()) {
+    throw new Error("Item não encontrado");
+  }
+  
+  const currentcurrentStock = itemSnap.data().currentStock || 0;
+  await updateDoc(itemRef, {
+    currentStock: currentcurrentStock + currentStock,
+    lastUpdated: Timestamp.now()
+  });
+};
+
+const calculateStatus = (currentStock: number, minStock: number): InventoryItem['status'] => {
+  if (currentStock <= 0) return 'out_of_stock';
+  if (currentStock <= minStock) return 'low_stock';
   return 'in_stock';
+};
+
+/**
+ * Get current stock quantity for an item
+ */
+export const getCurrentStock = async (itemId: string): Promise<number> => {
+  try {
+    const itemRef = doc(db, "inventory", itemId);
+    const itemSnap = await getDoc(itemRef);
+    
+    if (!itemSnap.exists()) {
+      throw new Error("Item não encontrado");
+    }
+    
+    // Convert string to number
+    return Number(itemSnap.data().currentStock) || 0;
+  } catch (error) {
+    console.error("Error getting current stock:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get minimum stock quantity for an item
+ */
+export const getMinimumStock = async (itemId: string): Promise<number> => {
+  try {
+    const itemRef = doc(db, "inventory", itemId);
+    const itemSnap = await getDoc(itemRef);
+    
+    if (!itemSnap.exists()) {
+      throw new Error("Item não encontrado");
+    }
+    
+    // Convert string to number
+    return Number(itemSnap.data().minStock) || 0;
+  } catch (error) {
+    console.error("Error getting minimum stock:", error);
+    throw error;
+  }
 };

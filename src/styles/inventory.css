@@ -1,0 +1,352 @@
+.inventory-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  
+  .inventory-header {
+    margin-bottom: 24px;
+  }
+  
+  .inventory-header h1 {
+    font-size: 28px;
+    margin-bottom: 4px;
+    color: #333;
+  }
+  
+  .inventory-subtitle {
+    color: #666;
+    margin-top: 0;
+    margin-bottom: 20px;
+  }
+  
+  .header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .search-container {
+    position: relative;
+    flex-grow: 1;
+    margin-right: 16px;
+  }
+  
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #999;
+  }
+  
+  .search-input {
+    width: 100%;
+    padding: 10px 10px 10px 40px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  
+  .new-item-btn {
+    background-color: #ff6600;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .new-item-btn:hover {
+    background-color: #e65c00;
+  }
+  
+  .low-stock-alert {
+    background-color: #fff9f2;
+    border-left: 4px solid #ff6600;
+    border-radius: 4px;
+    padding: 16px;
+    margin-bottom: 24px;
+    display: flex;
+    gap: 16px;
+  }
+  
+  .alert-icon {
+    font-size: 24px;
+  }
+  
+  .alert-content {
+    flex-grow: 1;
+  }
+  
+  .alert-content h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    color: #333;
+  }
+  
+  .alert-content p {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: #666;
+  }
+  
+  .low-stock-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .low-stock-item:last-child {
+    border-bottom: none;
+  }
+  
+  .item-info {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .restock-btn {
+    background-color: transparent;
+    color: #0066cc;
+    border: 1px solid #0066cc;
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  
+  .restock-btn:hover {
+    background-color: #f0f7ff;
+  }
+  
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+  
+  .tab {
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+    position: relative;
+    white-space: nowrap;
+  }
+  
+  .tab.active {
+    color: #333;
+    font-weight: 600;
+  }
+  
+  .tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: #ff6600;
+  }
+  
+  .items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  
+  .item-card {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  
+  .item-card.low-stock {
+    border-left: 3px solid #ff6600;
+  }
+  
+  .card-header {
+    padding: 16px;
+    background-color: #f9f9f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .card-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+  }
+  
+  .category-tag {
+    background-color: #eee;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #666;
+  }
+  
+  .card-content {
+    padding: 16px;
+  }
+  
+  .stock-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  
+  .stock-info label {
+    color: #666;
+    font-size: 14px;
+  }
+  
+  .stock-info span {
+    font-weight: 500;
+    color: #333;
+  }
+  
+  .low-stock-value {
+    color: #ff6600 !important;
+  }
+  
+  .card-actions {
+    padding: 12px 16px;
+    background-color: #f9f9f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .icon-actions {
+    display: flex;
+    gap: 8px;
+  }
+  
+  .edit-btn, .delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    border-radius: 4px;
+  }
+  
+  .edit-btn {
+    color: #0066cc;
+  }
+  
+  .edit-btn:hover {
+    background-color: #f0f7ff;
+  }
+  
+  .delete-btn {
+    color: #dc3545;
+  }
+  
+  .delete-btn:hover {
+    background-color: #fff5f5;
+  }
+  
+  /* Modal styles */
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .modal-content {
+    background-color: white;
+    padding: 24px;
+    border-radius: 8px;
+    width: 500px;
+    max-width: 90%;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  }
+  
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+  }
+  
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #666;
+  }
+  
+  .form-group {
+    margin-bottom: 16px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  
+  .form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+  }
+  
+  .btn-cancel {
+    background-color: #f5f5f5;
+    color: #333;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 16px;
+    cursor: pointer;
+  }
+  
+  .btn-primary {
+    background-color: #ff6600;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 16px;
+    cursor: pointer;
+  }
+  
+  .btn-primary:hover {
+    background-color: #e65c00;
+  }
