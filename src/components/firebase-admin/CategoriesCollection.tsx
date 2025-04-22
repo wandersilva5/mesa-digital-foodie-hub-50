@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from "react";
-import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, deleteDoc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -35,17 +34,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Pencil, Trash2, Loader2, RefreshCw, ImageIcon } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Loader2, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase";
 
 interface Category {
-  id: string;
+  id: number;
   name: string;
   description?: string;
-  imageUrl?: string;
   active: boolean;
+  order: number;
 }
 
 const CategoriesCollection: React.FC = () => {
@@ -54,14 +51,11 @@ const CategoriesCollection: React.FC = () => {
   const [formData, setFormData] = useState<Partial<Category>>({
     name: "",
     description: "",
-    imageUrl: "",
     active: true,
+    order: 0
   });
   const [isNewCategory, setIsNewCategory] = useState(true);
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
   const { toast } = useToast();
 
   const fetchCategories = async () => {
@@ -72,7 +66,14 @@ const CategoriesCollection: React.FC = () => {
       const categoriesList: Category[] = [];
       
       categoriesSnapshot.forEach((doc) => {
-        categoriesList.push({ id: doc.id, ...doc.data() } as Category);
+        const data = doc.data();
+        categoriesList.push({
+          id: Number(doc.id),
+          name: data.name,
+          description: data.description,
+          active: data.active,
+          order: data.order
+        });
       });
       
       setCategories(categoriesList);
@@ -97,33 +98,19 @@ const CategoriesCollection: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-    }
-  };
-
-  const uploadImage = async (): Promise<string | null> => {
-    if (!imageFile) return null;
-    
-    setUploadingImage(true);
+  const getNextId = async (): Promise<number> => {
     try {
-      const storageRef = ref(storage, `categories/${Date.now()}_${imageFile.name}`);
-      const snapshot = await uploadBytes(storageRef, imageFile);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      return downloadURL;
+      const categoriesRef = collection(db, "categories");
+      const q = query(categoriesRef, orderBy("id", "desc"), limit(1));
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) return 1;
+      
+      const lastCategory = snapshot.docs[0].data();
+      return (lastCategory.id || 0) + 1;
     } catch (error) {
-      console.error("Erro ao fazer upload da imagem:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível fazer upload da imagem",
-        variant: "destructive",
-      });
-      return null;
-    } finally {
-      setUploadingImage(false);
+      console.error("Error getting next ID:", error);
+      return Date.now(); // Fallback
     }
   };
 
@@ -131,13 +118,11 @@ const CategoriesCollection: React.FC = () => {
     setFormData({
       name: "",
       description: "",
-      imageUrl: "",
       active: true,
+      order: 0
     });
     setIsNewCategory(true);
     setEditingCategoryId(null);
-    setImageFile(null);
-    setImagePreview(null);
   };
 
   const handleSubmit = async () => {
@@ -152,48 +137,35 @@ const CategoriesCollection: React.FC = () => {
 
     setLoading(true);
     try {
-      let imageUrl = formData.imageUrl;
-      
-      if (imageFile) {
-        const uploadedImageUrl = await uploadImage();
-        if (uploadedImageUrl) {
-          imageUrl = uploadedImageUrl;
-        }
-      }
-      
       if (isNewCategory) {
-        // Gerar um novo ID para categoria
-        const newCategoryId = `category_${Date.now()}`;
+        const nextId = await getNextId();
         const newCategory: Category = {
-          id: newCategoryId,
-          name: formData.name!,
+          id: nextId,
+          name: formData.name,
           description: formData.description,
-          imageUrl: imageUrl,
-          active: formData.active !== undefined ? formData.active : true,
+          active: formData.active ?? true,
+          order: nextId
         };
         
-        // Salvar no Firestore
-        await setDoc(doc(db, "categories", newCategoryId), newCategory);
-        
+        await setDoc(doc(db, "categories", nextId.toString()), newCategory);
         setCategories(prev => [...prev, newCategory]);
+        
         toast({
           title: "Sucesso",
           description: "Categoria adicionada com sucesso",
         });
       } else if (editingCategoryId) {
-        // Atualizar categoria existente
         const updatedData = {
           name: formData.name,
           description: formData.description,
-          active: formData.active,
-          ...(imageUrl && { imageUrl }),
+          active: formData.active
         };
         
-        await setDoc(doc(db, "categories", editingCategoryId), updatedData, { merge: true });
+        await setDoc(doc(db, "categories", editingCategoryId.toString()), updatedData, { merge: true });
         
         setCategories(prev => 
           prev.map(category => 
-            category.id === editingCategoryId ? { ...category, ...updatedData, imageUrl } : category
+            category.id === Number(editingCategoryId) ? { ...category, ...updatedData } : category
           )
         );
         
@@ -219,18 +191,17 @@ const CategoriesCollection: React.FC = () => {
     setFormData({
       name: category.name,
       description: category.description,
-      imageUrl: category.imageUrl,
       active: category.active,
+      order: category.order
     });
     setIsNewCategory(false);
     setEditingCategoryId(category.id);
-    setImagePreview(category.imageUrl || null);
   };
 
-  const handleDeleteCategory = async (categoryId: string) => {
+  const handleDeleteCategory = async (categoryId: number) => {
     setLoading(true);
     try {
-      await deleteDoc(doc(db, "categories", categoryId));
+      await deleteDoc(doc(db, "categories", categoryId.toString()));
       
       setCategories(prev => prev.filter(category => category.id !== categoryId));
       
@@ -310,27 +281,6 @@ const CategoriesCollection: React.FC = () => {
                       placeholder="Descrição da categoria"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="image">Imagem</Label>
-                    <div className="flex items-center gap-4">
-                      <Input
-                        id="image"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="flex-1"
-                      />
-                    </div>
-                    {(imagePreview || formData.imageUrl) && (
-                      <div className="mt-2 relative w-full h-40 bg-gray-100 rounded-md overflow-hidden">
-                        <img 
-                          src={imagePreview || formData.imageUrl} 
-                          alt="Prévia da imagem" 
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                  </div>
                 </div>
                 <DialogFooter>
                   <DialogClose asChild>
@@ -339,9 +289,9 @@ const CategoriesCollection: React.FC = () => {
                   <DialogClose asChild>
                     <Button 
                       onClick={handleSubmit} 
-                      disabled={loading || uploadingImage}
+                      disabled={loading}
                     >
-                      {(loading || uploadingImage) ? (
+                      {loading ? (
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       ) : null}
                       {isNewCategory ? "Adicionar" : "Atualizar"}
@@ -358,7 +308,6 @@ const CategoriesCollection: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Imagem</TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Status</TableHead>
@@ -368,33 +317,20 @@ const CategoriesCollection: React.FC = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={4} className="h-24 text-center">
                     <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                     <span className="text-sm text-muted-foreground">Carregando...</span>
                   </TableCell>
                 </TableRow>
               ) : categories.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                     Nenhuma categoria encontrada.
                   </TableCell>
                 </TableRow>
               ) : (
                 categories.map((category) => (
                   <TableRow key={category.id}>
-                    <TableCell>
-                      {category.imageUrl ? (
-                        <img 
-                          src={category.imageUrl} 
-                          alt={category.name} 
-                          className="w-10 h-10 rounded-md object-cover"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center">
-                          <ImageIcon className="h-5 w-5 text-gray-400" />
-                        </div>
-                      )}
-                    </TableCell>
                     <TableCell className="font-medium">{category.name}</TableCell>
                     <TableCell>{category.description || "—"}</TableCell>
                     <TableCell>
@@ -446,27 +382,6 @@ const CategoriesCollection: React.FC = () => {
                                   placeholder="Descrição da categoria"
                                 />
                               </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="edit-image">Imagem</Label>
-                                <div className="flex items-center gap-4">
-                                  <Input
-                                    id="edit-image"
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleImageChange}
-                                    className="flex-1"
-                                  />
-                                </div>
-                                {(imagePreview || formData.imageUrl) && (
-                                  <div className="mt-2 relative w-full h-40 bg-gray-100 rounded-md overflow-hidden">
-                                    <img 
-                                      src={imagePreview || formData.imageUrl} 
-                                      alt="Prévia da imagem" 
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                )}
-                              </div>
                             </div>
                             <DialogFooter>
                               <DialogClose asChild>
@@ -475,9 +390,9 @@ const CategoriesCollection: React.FC = () => {
                               <DialogClose asChild>
                                 <Button 
                                   onClick={handleSubmit} 
-                                  disabled={loading || uploadingImage}
+                                  disabled={loading}
                                 >
-                                  {(loading || uploadingImage) ? (
+                                  {loading ? (
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                                   ) : null}
                                   Atualizar
