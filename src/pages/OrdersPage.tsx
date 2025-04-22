@@ -8,10 +8,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { Search, Clock, CheckCircle, AlertTriangle, Ban, ExternalLink } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { getOrdersByStatus, getOrderById, updateOrderStatus } from "@/services/orderService";
-import { collection, query, where, onSnapshot, Timestamp } from "firebase/firestore";
+import { collection, query, where, onSnapshot, Timestamp, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { useOrderManagement } from "@/hooks/useOrderManagement";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { ptBR } from "date-fns/locale";
 
 interface OrderItem {
   productId: string;
@@ -46,6 +50,7 @@ const OrdersPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const { changeOrderStatus, translateStatus } = useOrderManagement();
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
   const userRole = user?.role;
   
@@ -62,45 +67,71 @@ const OrdersPage = () => {
       statusesToFetch = ["pending", "preparing", "ready", "delivered"];
     }
     
-    const ordersRef = collection(db, "orders");
-    let q;
-    
-    if (userRole === "customer" && user) {
-      q = query(ordersRef, where("userId", "==", user.id));
-    } else {
-      q = query(ordersRef, where("status", "in", statusesToFetch));
+    try {
+      const ordersRef = collection(db, "orders");
+      // Usar uma query mais simples para garantir que todos os pedidos sejam buscados
+      const q = query(ordersRef);
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        try {
+          const fetchedOrders: Order[] = [];
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            // Validar e converter os dados do pedido
+            const order: Order = {
+              id: doc.id,
+              items: Array.isArray(data.items) ? data.items : [],
+              total: Number(data.total) || 0,
+              status: data.status || "pending",
+              createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+              updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now(),
+              completedAt: data.completedAt instanceof Timestamp ? data.completedAt : null,
+              tableNumber: data.tableNumber,
+              customerName: data.customerName || "Cliente",
+              delivery: Boolean(data.delivery),
+              address: data.address || "",
+              tableId: data.tableId || null,
+              paymentMethod: data.paymentMethod,
+              paymentStatus: data.paymentStatus,
+            };
+            
+            // Incluir o pedido se estiver nos status desejados
+            if (statusesToFetch.includes(order.status)) {
+              fetchedOrders.push(order);
+            }
+          });
+          
+          // Ordenar pedidos por data de criação (mais recentes primeiro)
+          const sortedOrders = fetchedOrders.sort((a, b) => 
+            b.createdAt.toMillis() - a.createdAt.toMillis()
+          );
+          
+          setOrders(sortedOrders);
+          setLoading(false);
+        } catch (error) {
+          console.error("Error processing orders:", error);
+          toast({
+            title: "Erro",
+            description: "Erro ao processar dados dos pedidos",
+            variant: "destructive",
+          });
+          setLoading(false);
+        }
+      }, (error) => {
+        console.error("Error fetching orders:", error);
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar pedidos: " + error.message,
+          variant: "destructive",
+        });
+        setLoading(false);
+      });
+      
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error setting up orders listener:", error);
+      setLoading(false);
     }
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedOrders: Order[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data() as Record<string, any>;
-        fetchedOrders.push({ 
-          id: doc.id, 
-          ...data,
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt,
-          completedAt: data.completedAt
-        } as Order);
-      });
-      
-      fetchedOrders.sort((a, b) => {
-        return b.createdAt.toMillis() - a.createdAt.toMillis();
-      });
-      
-      setOrders(fetchedOrders);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching orders:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os pedidos",
-        variant: "destructive",
-      });
-      setLoading(false);
-    });
-    
-    return () => unsubscribe();
   }, [user, userRole]);
   
   const getStatusColor = (status: string): string => {
@@ -126,9 +157,16 @@ const OrdersPage = () => {
     }
   };
   
-  const formatDate = (timestamp: Timestamp) => {
-    if (!timestamp) return "";
-    return format(timestamp.toDate(), "dd/MM/yyyy HH:mm");
+  const formatDate = (timestamp: Timestamp | null) => {
+    if (!timestamp || !(timestamp instanceof Timestamp)) {
+      return "Data indisponível";
+    }
+    try {
+      return format(timestamp.toDate(), "dd/MM/yyyy HH:mm");
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Data inválida";
+    }
   };
   
   const filteredOrders = orders.filter(order => {
@@ -136,8 +174,15 @@ const OrdersPage = () => {
       order.id.toString().includes(searchTerm) || 
       (order.tableNumber && order.tableNumber.toString().includes(searchTerm)) ||
       (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    return searchMatch;
+
+    // Filtrar por data
+    const orderDate = order.createdAt.toDate();
+    const isWithinSelectedDay = isWithinInterval(orderDate, {
+      start: startOfDay(selectedDate),
+      end: endOfDay(selectedDate)
+    });
+
+    return searchMatch && isWithinSelectedDay;
   });
   
   const OrderCard = ({ order }: { order: Order }) => {
@@ -243,15 +288,35 @@ const OrdersPage = () => {
           <p className="text-muted-foreground">Gerencie todos os pedidos do restaurante</p>
         </div>
         
-        <div className="relative sm:w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Buscar pedido..."
-            className="pl-8 w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {selectedDate ? format(selectedDate, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => setSelectedDate(date || new Date())}
+                initialFocus
+                locale={ptBR}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <div className="relative sm:w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Buscar pedido..."
+              className="pl-8 w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
       </div>
       

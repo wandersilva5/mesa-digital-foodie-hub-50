@@ -8,12 +8,167 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
+import { collection, doc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Loader2 } from "lucide-react";
+import { useState } from "react";
+
+interface CollectionStatus {
+  [key: string]: {
+    loading: boolean;
+    error: string | null;
+    success: boolean;
+  };
+}
+
+const initializeCollection = async (
+  collectionName: string,
+  initialData: any,
+  customId?: string
+) => {
+  try {
+    console.log(`Iniciando criação da coleção ${collectionName}...`);
+    console.log('Dados iniciais:', initialData);
+
+    const docRef = customId
+      ? doc(db, collectionName, customId)
+      : doc(collection(db, collectionName));
+
+    console.log('DocRef criado:', docRef.path);
+
+    await setDoc(docRef, {
+      ...initialData,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    console.log(`Coleção ${collectionName} criada com sucesso!`);
+    console.log('ID do documento:', docRef.id);
+
+    return true;
+  } catch (error) {
+    console.error(`Erro detalhado ao inicializar ${collectionName}:`, error);
+    throw error;
+  }
+};
 
 const FirebaseSetupPage = () => {
+
+  const [collectionStatus, setCollectionStatus] = useState<CollectionStatus>({
+    tables: { loading: false, error: null, success: false },
+    categories: { loading: false, error: null, success: false },
+    products: { loading: false, error: null, success: false },
+    users: { loading: false, error: null, success: false },
+    configuracao: { loading: false, error: null, success: false }
+  });
+
+  const handleInitializeCollection = async (collection: string) => {
+    setCollectionStatus(prev => ({
+      ...prev,
+      [collection]: { loading: true, error: null, success: false }
+    }));
+
+    try {
+      switch (collection) {
+        case 'tables':
+          await initializeCollection('tables', {
+            number: 1,
+            capacity: 4,
+            status: "available",
+            location: "internal",
+            active: true
+          });
+          break;
+
+        case 'categories':
+          await initializeCollection('categories', {
+            name: "Categoria Exemplo",
+            description: "Descrição da categoria exemplo",
+            active: true,
+            order: 1
+          });
+          break;
+
+        case 'products':
+          await initializeCollection('products', {
+            name: "Produto Exemplo",
+            description: "Descrição do produto exemplo",
+            price: 0,
+            active: true,
+            ingredients: [],
+            prepTime: 15,
+            featured: false,
+            stockManagement: false
+          });
+          break;
+
+        case 'users':
+          await initializeCollection('users', {
+            name: "Admin",
+            email: "admin@exemplo.com",
+            role: "admin",
+            active: true
+          });
+          break;
+
+        case 'configuracao':
+          await initializeCollection('configuracao', {
+            nome: "Nome do Estabelecimento",
+            slogan: "Seu slogan aqui",
+            corPrimaria: "#10b981",
+            corSecundaria: "#3b82f6",
+            corAcento: "#8b5cf6",
+            exibirTaxaServico: true,
+            valorTaxaServico: "10",
+            permitirReservas: true
+          }, 'estabelecimento');
+          break;
+      }
+
+      setCollectionStatus(prev => ({
+        ...prev,
+        [collection]: { loading: false, error: null, success: true }
+      }));
+    } catch (error) {
+      setCollectionStatus(prev => ({
+        ...prev,
+        [collection]: {
+          loading: false,
+          error: (error as Error).message,
+          success: false
+        }
+      }));
+    }
+  };
+
+  // Adicione este componente de botão dentro de cada Card após o CardContent
+  const InitializeButton = ({ collection }: { collection: string }) => (
+    <div className="px-6 py-4 border-t">
+      <Button
+        onClick={() => handleInitializeCollection(collection)}
+        disabled={collectionStatus[collection].loading}
+        variant={collectionStatus[collection].success ? "outline" : "default"}
+        className="w-full"
+      >
+        {collectionStatus[collection].loading ? (
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        ) : null}
+        {collectionStatus[collection].success
+          ? "Coleção Inicializada ✓"
+          : "Inicializar Coleção"}
+      </Button>
+      {collectionStatus[collection].error && (
+        <p className="text-sm text-red-500 mt-2">
+          Erro: {collectionStatus[collection].error}
+        </p>
+      )}
+    </div>
+  );
+
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">Configuração do Firebase</h1>
-      
+
       <Alert className="mb-6">
         <Terminal className="h-4 w-4" />
         <AlertTitle>Importante</AlertTitle>
@@ -21,14 +176,14 @@ const FirebaseSetupPage = () => {
           Esta página contém informações sobre a estrutura do banco de dados Firebase utilizada nesta aplicação.
         </AlertDescription>
       </Alert>
-      
+
       <Tabs defaultValue="collections">
         <TabsList className="mb-4">
           <TabsTrigger value="collections">Coleções</TabsTrigger>
           <TabsTrigger value="rules">Regras de Segurança</TabsTrigger>
           <TabsTrigger value="config">Configuração</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="collections">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Estrutura da coleção de mesas */}
@@ -42,7 +197,7 @@ const FirebaseSetupPage = () => {
               <CardContent>
                 <ScrollArea className="h-72">
                   <Code className="text-sm">
-{`// Estrutura da coleção "tables"
+                    {`// Estrutura da coleção "tables"
 {
   "id": string, // ID único da mesa (ex: "table_1632456789")
   "number": number, // Número da mesa (ex: 1, 2, 3...)
@@ -58,7 +213,7 @@ const FirebaseSetupPage = () => {
                 </ScrollArea>
               </CardContent>
             </Card>
-            
+
             {/* Estrutura da coleção de categorias */}
             <Card>
               <CardHeader>
@@ -70,7 +225,7 @@ const FirebaseSetupPage = () => {
               <CardContent>
                 <ScrollArea className="h-72">
                   <Code className="text-sm">
-{`// Estrutura da coleção "categories"
+                    {`// Estrutura da coleção "categories"
 {
   "id": string, // ID único da categoria (ex: "category_1632456789")
   "name": string, // Nome da categoria (ex: "Bebidas", "Lanches", "Sobremesas")
@@ -83,7 +238,7 @@ const FirebaseSetupPage = () => {
                 </ScrollArea>
               </CardContent>
             </Card>
-            
+
             {/* Estrutura da coleção de produtos */}
             <Card>
               <CardHeader>
@@ -95,7 +250,7 @@ const FirebaseSetupPage = () => {
               <CardContent>
                 <ScrollArea className="h-72">
                   <Code className="text-sm">
-{`// Estrutura da coleção "products"
+                    {`// Estrutura da coleção "products"
 {
   "id": string, // ID único do produto (ex: "product_1632456789")
   "name": string, // Nome do produto
@@ -118,7 +273,7 @@ const FirebaseSetupPage = () => {
                 </ScrollArea>
               </CardContent>
             </Card>
-            
+
             {/* Estrutura da coleção de pedidos */}
             <Card>
               <CardHeader>
@@ -130,7 +285,7 @@ const FirebaseSetupPage = () => {
               <CardContent>
                 <ScrollArea className="h-72">
                   <Code className="text-sm">
-{`// Estrutura da coleção "orders"
+                    {`// Estrutura da coleção "orders"
 {
   "id": string, // ID único do pedido (ex: "order_1632456789")
   "tableId": string, // ID da mesa (se aplicável)
@@ -160,7 +315,7 @@ const FirebaseSetupPage = () => {
                 </ScrollArea>
               </CardContent>
             </Card>
-            
+
             {/* Estrutura da coleção de pagamentos */}
             <Card>
               <CardHeader>
@@ -172,7 +327,7 @@ const FirebaseSetupPage = () => {
               <CardContent>
                 <ScrollArea className="h-72">
                   <Code className="text-sm">
-{`// Estrutura da coleção "payments"
+                    {`// Estrutura da coleção "payments"
 {
   "id": string, // ID único do pagamento (ex: "payment_1632456789")
   "orderId": string, // ID do pedido relacionado
@@ -194,8 +349,9 @@ const FirebaseSetupPage = () => {
                   </Code>
                 </ScrollArea>
               </CardContent>
+              <InitializeButton collection="tables" />
             </Card>
-            
+
             {/* Estrutura da coleção de usuários */}
             <Card>
               <CardHeader>
@@ -207,7 +363,7 @@ const FirebaseSetupPage = () => {
               <CardContent>
                 <ScrollArea className="h-72">
                   <Code className="text-sm">
-{`// Estrutura da coleção "users"
+                    {`// Estrutura da coleção "users"
 {
   "id": string, // ID único do usuário (geralmente gerado pelo Auth)
   "name": string, // Nome completo
@@ -231,8 +387,9 @@ const FirebaseSetupPage = () => {
                   </Code>
                 </ScrollArea>
               </CardContent>
+              <InitializeButton collection="tables" />
             </Card>
-            
+
             {/* Estrutura da configuração do estabelecimento */}
             <Card>
               <CardHeader>
@@ -244,7 +401,7 @@ const FirebaseSetupPage = () => {
               <CardContent>
                 <ScrollArea className="h-72">
                   <Code className="text-sm">
-{`// Estrutura da coleção "configuracao" (documento "estabelecimento")
+                    {`// Estrutura da coleção "configuracao" (documento "estabelecimento")
 {
   "nome": string, // Nome do estabelecimento
   "slogan": string, // Slogan ou descrição curta
@@ -269,8 +426,9 @@ const FirebaseSetupPage = () => {
                   </Code>
                 </ScrollArea>
               </CardContent>
+              <InitializeButton collection="tables" />
             </Card>
-            
+
             {/* Estrutura da coleção de movimentações de estoque */}
             <Card>
               <CardHeader>
@@ -282,7 +440,7 @@ const FirebaseSetupPage = () => {
               <CardContent>
                 <ScrollArea className="h-72">
                   <Code className="text-sm">
-{`// Estrutura da coleção "inventory_transactions"
+                    {`// Estrutura da coleção "inventory_transactions"
 {
   "id": string, // ID único da transação
   "productId": string, // ID do produto
@@ -299,8 +457,9 @@ const FirebaseSetupPage = () => {
                   </Code>
                 </ScrollArea>
               </CardContent>
+              <InitializeButton collection="tables" />
             </Card>
-            
+
             {/* Estrutura do registro de caixa */}
             <Card>
               <CardHeader>
@@ -312,7 +471,7 @@ const FirebaseSetupPage = () => {
               <CardContent>
                 <ScrollArea className="h-72">
                   <Code className="text-sm">
-{`// Estrutura da coleção "register_sessions"
+                    {`// Estrutura da coleção "register_sessions"
 {
   "id": string, // ID único da sessão
   "userId": string, // ID do usuário/operador
@@ -337,10 +496,11 @@ const FirebaseSetupPage = () => {
                   </Code>
                 </ScrollArea>
               </CardContent>
+              <InitializeButton collection="tables" />
             </Card>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="rules">
           <Card>
             <CardHeader>
@@ -352,7 +512,7 @@ const FirebaseSetupPage = () => {
             <CardContent>
               <ScrollArea className="h-96">
                 <Code className="text-sm">
-{`rules_version = '2';
+                  {`rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Função para verificar se o usuário está autenticado
@@ -450,7 +610,7 @@ service cloud.firestore {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="config">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
@@ -463,7 +623,7 @@ service cloud.firestore {
               <CardContent>
                 <ScrollArea className="h-96">
                   <Code className="text-sm">
-{`// src/lib/firebase.ts
+                    {`// src/lib/firebase.ts
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
@@ -491,7 +651,7 @@ export default app;`}
                 </ScrollArea>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Inicialização de Dados</CardTitle>
@@ -502,7 +662,7 @@ export default app;`}
               <CardContent>
                 <ScrollArea className="h-96">
                   <Code className="text-sm">
-{`// Código para inicializar as coleções básicas
+                    {`// Código para inicializar as coleções básicas
 import { setDoc, doc } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -630,7 +790,7 @@ async function fecharSessaoCaixa(sessaoId, valorFinal, observacoes = "") {
                 </ScrollArea>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Instruções de Uso</CardTitle>
@@ -646,7 +806,7 @@ async function fecharSessaoCaixa(sessaoId, valorFinal, observacoes = "") {
                       Acesse o console do Firebase (firebase.google.com) e crie um novo projeto.
                     </p>
                   </div>
-                  
+
                   <div>
                     <h3 className="text-lg font-medium">2. Ativar serviços necessários</h3>
                     <ul className="list-disc list-inside text-muted-foreground">
@@ -655,37 +815,37 @@ async function fecharSessaoCaixa(sessaoId, valorFinal, observacoes = "") {
                       <li>Storage</li>
                     </ul>
                   </div>
-                  
+
                   <div>
                     <h3 className="text-lg font-medium">3. Adicionar aplicativo web</h3>
                     <p className="text-muted-foreground">
                       Registre um aplicativo web no seu projeto Firebase e obtenha as credenciais de configuração.
                     </p>
                   </div>
-                  
+
                   <div>
                     <h3 className="text-lg font-medium">4. Configurar o arquivo firebase.ts</h3>
                     <p className="text-muted-foreground">
                       Substitua as credenciais de exemplo no arquivo firebase.ts pelas suas credenciais reais.
                     </p>
                   </div>
-                  
+
                   <div>
                     <h3 className="text-lg font-medium">5. Configurar regras de segurança</h3>
                     <p className="text-muted-foreground">
                       Aplique as regras de segurança sugeridas ao seu Firestore Database e Storage.
                     </p>
                   </div>
-                  
+
                   <div>
                     <h3 className="text-lg font-medium">6. Criar coleções</h3>
                     <p className="text-muted-foreground">
                       Inicialize as coleções conforme as estruturas documentadas nesta página.
                     </p>
                   </div>
-                  
+
                   <Separator className="my-6" />
-                  
+
                   <div>
                     <h3 className="text-lg font-medium">Recursos Úteis</h3>
                     <ul className="list-disc list-inside text-muted-foreground">

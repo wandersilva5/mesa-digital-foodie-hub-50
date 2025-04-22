@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from "react";
-import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -152,19 +151,6 @@ const TablesCollection: React.FC = () => {
       return;
     }
 
-    // Verificar se já existe uma mesa com o mesmo número
-    if (isNewTable || (editingTableId && tables.find(t => t.id === editingTableId)?.number !== formData.number)) {
-      const existingTable = tables.find(t => t.number === formData.number);
-      if (existingTable) {
-        toast({
-          title: "Erro",
-          description: `Já existe uma mesa com o número ${formData.number}`,
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
     setLoading(true);
     try {
       if (isNewTable) {
@@ -192,38 +178,46 @@ const TablesCollection: React.FC = () => {
         });
       } else if (editingTableId) {
         // Atualizar mesa existente
+        const tableRef = doc(db, "tables", editingTableId);
+        
+        // Garantir que todos os campos tenham valores válidos
         const updatedData = {
           number: formData.number,
           capacity: formData.capacity,
-          status: formData.status,
-          location: formData.location,
-          active: formData.active,
+          status: formData.status || "available",
+          location: formData.location || "internal", // Garante um valor padrão
+          active: formData.active ?? true,
+          updatedAt: new Date()
         };
-        
-        await setDoc(doc(db, "tables", editingTableId), updatedData, { merge: true });
-        
-        // Atualizar na lista e ordenar
-        const updatedTables = tables.map(table => 
-          table.id === editingTableId ? { ...table, ...updatedData } : table
-        ).sort((a, b) => a.number - b.number);
-        
-        setTables(updatedTables);
-        
+
+        // Usar updateDoc com dados completos
+        await updateDoc(tableRef, updatedData);
+
+        // Atualizar estado local preservando campos existentes
+        setTables(prev => 
+          prev.map(table => 
+            table.id === editingTableId 
+              ? { ...table, ...updatedData }
+              : table
+          )
+        );
+
         toast({
           title: "Sucesso",
           description: "Mesa atualizada com sucesso",
         });
+
+        resetForm();
       }
     } catch (error) {
       console.error("Erro ao salvar mesa:", error);
       toast({
         title: "Erro",
-        description: "Não foi possível salvar a mesa",
+        description: `Não foi possível salvar a mesa: ${(error as Error).message}`,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
-      resetForm();
     }
   };
 
@@ -341,7 +335,7 @@ const TablesCollection: React.FC = () => {
                     <Label htmlFor="status">Status</Label>
                     <Select 
                       value={formData.status || "available"} 
-                      onValueChange={(value) => handleStatusChange(value as any)}
+                      onValueChange={(value) => handleStatusChange(value as "available" | "occupied" | "reserved" | "unavailable")}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um status" />
@@ -497,7 +491,7 @@ const TablesCollection: React.FC = () => {
                                 <Label htmlFor="edit-status">Status</Label>
                                 <Select 
                                   value={formData.status || "available"} 
-                                  onValueChange={(value) => handleStatusChange(value as any)}
+                                  onValueChange={(value) => handleStatusChange(value as "available" | "occupied" | "reserved" | "unavailable")}
                                 >
                                   <SelectTrigger>
                                     <SelectValue placeholder="Selecione um status" />

@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from "react";
-import { collection, getDocs, doc, updateDoc, query, orderBy, where, Timestamp } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, query, orderBy, where, Timestamp, onSnapshot, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -59,6 +58,9 @@ interface Order {
   paymentMethod?: string;
   delivery?: boolean;
   address?: string;
+  paymentStatus?: "pending" | "paid" | "refunded" | "failed";
+  paymentId?: string;
+  completedAt?: Timestamp;
 }
 
 const OrderStatusColor = {
@@ -146,9 +148,91 @@ const OrdersCollection: React.FC = () => {
     }
   };
 
+  // Dummy user and userRole for demonstration; replace with real authentication logic as needed
+  const user = null; // or your user object
+  const userRole: string = "admin"; // or "customer", etc.
+  const statusesToFetch = ["pending", "preparing", "ready", "delivered", "canceled"];
+
   useEffect(() => {
-    fetchData();
-  }, []);
+    let unsubscribe: () => void;
+
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        const ordersRef = collection(db, "orders");
+        
+        // Query simplificada ordenada por data
+        const q = query(
+          ordersRef,
+          orderBy("createdAt", "desc")
+        );
+
+        unsubscribe = onSnapshot(
+          q,
+          (snapshot) => {
+            try {
+              const fetchedOrders = snapshot.docs.map(doc => {
+                const data = doc.data();
+                // Garantir que todos os campos necessários existem
+                return {
+                  id: doc.id,
+                  items: data.items || [],
+                  total: data.total || 0,
+                  status: data.status || "pending",
+                  createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+                  updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now(),
+                  completedAt: data.completedAt instanceof Timestamp ? data.completedAt : null,
+                  tableNumber: data.tableNumber,
+                  customerName: data.customerName,
+                  delivery: data.delivery || false,
+                  address: data.address,
+                  paymentMethod: data.paymentMethod,
+                  paymentStatus: data.paymentStatus
+                } as Order;
+              });
+
+              setOrders(fetchedOrders);
+            } catch (err) {
+              console.error("Error processing order data:", err);
+              toast({
+                title: "Erro",
+                description: "Erro ao processar dados dos pedidos",
+                variant: "destructive",
+              });
+            } finally {
+              setLoading(false);
+            }
+          },
+          (error) => {
+            console.error("Error in orders subscription:", error);
+            toast({
+              title: "Erro",
+              description: "Erro ao monitorar pedidos",
+              variant: "destructive",
+            });
+            setLoading(false);
+          }
+        );
+      } catch (error) {
+        console.error("Error setting up orders listener:", error);
+        toast({
+          title: "Erro",
+          description: "Erro ao configurar monitoramento de pedidos",
+          variant: "destructive",
+        });
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+
+    // Cleanup function
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [activeTab]); // Apenas activeTab como dependência
 
   const handleStatusChange = (status: string) => {
     setOrderStatus(status);
@@ -169,7 +253,7 @@ const OrdersCollection: React.FC = () => {
       setOrders(prev => 
         prev.map(order => 
           order.id === selectedOrderDetails.id 
-            ? { ...order, status: orderStatus as any, updatedAt: Timestamp.now() } 
+            ? { ...order, status: orderStatus as Order['status'], updatedAt: Timestamp.now() } 
             : order
         )
       );
@@ -193,13 +277,21 @@ const OrdersCollection: React.FC = () => {
     }
   };
 
-  const getFilteredOrders = () => {
-    if (activeTab === "all") return orders;
-    return orders.filter(order => order.status === activeTab);
-  };
+  // Modificar getFilteredOrders para usar os dados já filtrados
+  const getFilteredOrders = () => orders;
 
-  const formatDate = (timestamp: Timestamp) => {
-    return format(timestamp.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+  const formatDate = (timestamp: Timestamp | null | undefined) => {
+    if (!timestamp) return "Data indisponível";
+    
+    try {
+      if (timestamp instanceof Timestamp) {
+        return format(timestamp.toDate(), "dd/MM/yyyy HH:mm", { locale: ptBR });
+      }
+      return "Data inválida";
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Data inválida";
+    }
   };
 
   const formatCurrency = (value: number) => {

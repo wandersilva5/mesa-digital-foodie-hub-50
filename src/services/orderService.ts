@@ -1,5 +1,4 @@
-
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, Timestamp, orderBy, limit } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, Timestamp, orderBy, limit, Query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { reserveStockForOrder, releaseReservedStock, finalizeStockReduction } from "./inventoryService";
 
@@ -32,38 +31,17 @@ interface Order {
 /**
  * Create a new order
  */
-export const createOrder = async (orderData: Order, userId: string): Promise<string> => {
+export const createOrder = async (orderData: Partial<Order>): Promise<string> => {
   try {
-    // Set default values
-    const order: Order = {
+    const orderRef = doc(collection(db, "orders"));
+    const order = {
       ...orderData,
-      status: "pending",
-      paymentStatus: "pending",
+      status: orderData.status || "pending",
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     };
     
-    // Create a new order document
-    const orderRef = doc(collection(db, "orders"));
     await setDoc(orderRef, order);
-    
-    // Reserve stock for all items in the order
-    await reserveStockForOrder(
-      orderRef.id,
-      order.items.map(item => ({ productId: item.productId, quantity: item.quantity })),
-      userId
-    );
-    
-    // If it's a table order, update the table status
-    if (order.tableId) {
-      const tableRef = doc(db, "tables", order.tableId);
-      await updateDoc(tableRef, {
-        status: "occupied",
-        currentOrderId: orderRef.id,
-        lastOrderTimestamp: Timestamp.now()
-      });
-    }
-    
     return orderRef.id;
   } catch (error) {
     console.error("Error creating order:", error);
@@ -160,38 +138,32 @@ export const getOrderById = async (orderId: string) => {
 /**
  * Get orders by status
  */
-export const getOrdersByStatus = async (status: string | string[]) => {
+export const getOrdersByStatus = async (statuses: string[]): Promise<Order[]> => {
   try {
     const ordersRef = collection(db, "orders");
-    let q;
+    const q = query(
+      ordersRef,
+      where("status", "in", statuses),
+      orderBy("createdAt", "desc")
+    );
     
-    if (Array.isArray(status)) {
-      q = query(
-        ordersRef,
-        where("status", "in", status),
-        orderBy("createdAt", "desc")
-      );
-    } else {
-      q = query(
-        ordersRef,
-        where("status", "==", status),
-        orderBy("createdAt", "desc")
-      );
-    }
-    
-    const querySnapshot = await getDocs(q);
-    
-    const orders: Order[] = [];
-    querySnapshot.forEach((doc) => {
-      // Fix: Explicitly cast doc.data() to a Record<string, any> type
-      const data = doc.data() as Record<string, any>;
-      orders.push({ id: doc.id, ...data } as Order);
-    });
-    
-    return orders;
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        // Garantir que as datas sejam sempre Timestamps válidos
+        createdAt: data.createdAt || Timestamp.now(),
+        updatedAt: data.updatedAt || Timestamp.now(),
+        completedAt: data.completedAt || null
+      };
+    }) as Order[];
   } catch (error) {
-    console.error("Error getting orders by status:", error);
-    return [];
+    console.error("Error fetching orders:", error);
+    throw new Error(
+      `Erro ao buscar pedidos. Verifique se o índice foi criado: ${error.message}`
+    );
   }
 };
 
@@ -212,9 +184,9 @@ export const getOrdersForCheckout = async () => {
     
     const orders: Order[] = [];
     querySnapshot.forEach((doc) => {
-      // Fix: Explicitly cast doc.data() to a Record<string, any> type
-      const data = doc.data() as Record<string, any>;
-      orders.push({ id: doc.id, ...data } as Order);
+      // Cast doc.data() to Order type
+      const data = doc.data() as Order;
+      orders.push({ id: doc.id, ...data });
     });
     
     return orders;

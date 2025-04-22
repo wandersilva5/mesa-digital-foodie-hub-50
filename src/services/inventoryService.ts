@@ -1,5 +1,4 @@
-
-import { doc, getDoc, updateDoc, setDoc, collection, Timestamp, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, updateDoc, setDoc, collection, Timestamp, query, where, getDocs, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface InventoryTransaction {
@@ -14,6 +13,19 @@ interface InventoryTransaction {
   previousQuantity: number;
   newQuantity: number;
   createdAt?: Timestamp;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  minQuantity: number;
+  status: 'in_stock' | 'low_stock' | 'out_of_stock';
+  lastUpdated: Timestamp;
+  category: string;
+  cost: number;
+  supplier?: string;
 }
 
 /**
@@ -263,4 +275,116 @@ export const getProductInventoryHistory = async (productId: string) => {
     console.error("Error getting product inventory history:", error);
     return [];
   }
+};
+
+export const getInventoryItems = async (): Promise<InventoryItem[]> => {
+  try {
+    const inventoryRef = collection(db, "inventory");
+    const snapshot = await getDocs(inventoryRef);
+    
+    const items = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name || '',
+        quantity: Number(data.quantity) || 0,
+        unit: data.unit || 'un',
+        minQuantity: Number(data.minQuantity) || 0,
+        category: data.category || '',
+        cost: Number(data.cost) || 0,
+        supplier: data.supplier || '',
+        status: data.status || 'in_stock',
+        lastUpdated: data.lastUpdated || Timestamp.now()
+      } as InventoryItem;
+    });
+    
+    console.log("Processed inventory items:", items); // Debug log
+    return items;
+  } catch (error) {
+    console.error("Error in getInventoryItems:", error);
+    throw error;
+  }
+};
+
+export const addInventoryItem = async (item: Omit<InventoryItem, 'id'>): Promise<string> => {
+  try {
+    const inventoryRef = doc(collection(db, "inventory"));
+    
+    // Garantir que os valores numéricos sejam numbers
+    const newItem = {
+      ...item,
+      quantity: Number(item.quantity) || 0,
+      minQuantity: Number(item.minQuantity) || 0,
+      cost: Number(item.cost) || 0,
+      lastUpdated: Timestamp.now(),
+      status: calculateStatus(Number(item.quantity) || 0, Number(item.minQuantity) || 0)
+    };
+    
+    await setDoc(inventoryRef, newItem);
+    return inventoryRef.id;
+  } catch (error) {
+    console.error("Error adding inventory item:", error);
+    throw error;
+  }
+};
+
+export const updateInventoryItem = async (id: string, updates: Partial<InventoryItem>): Promise<void> => {
+  try {
+    const itemRef = doc(db, "inventory", id);
+    
+    // Garantir que os valores numéricos sejam numbers
+    const updatedData = {
+      ...updates,
+      quantity: updates.quantity !== undefined ? Number(updates.quantity) : undefined,
+      minQuantity: updates.minQuantity !== undefined ? Number(updates.minQuantity) : undefined,
+      cost: updates.cost !== undefined ? Number(updates.cost) : undefined,
+      lastUpdated: Timestamp.now(),
+    };
+
+    // Calcular status apenas se quantity foi atualizada
+    if (updatedData.quantity !== undefined) {
+      updatedData.status = calculateStatus(
+        updatedData.quantity,
+        updatedData.minQuantity || 0
+      );
+    }
+    
+    await updateDoc(itemRef, updatedData);
+  } catch (error) {
+    console.error("Error updating inventory item:", error);
+    throw error;
+  }
+};
+
+export const deleteInventoryItem = async (id: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, "inventory", id));
+  } catch (error) {
+    console.error("Error deleting inventory item:", error);
+    throw error;
+  }
+};
+
+export const restockItem = async (id: string, quantity: number): Promise<void> => {
+  try {
+    const itemRef = doc(db, "inventory", id);
+    const item = (await getDoc(itemRef)).data() as InventoryItem;
+    
+    const updatedData = {
+      quantity: Number(item.quantity) + Number(quantity),
+      lastUpdated: Timestamp.now(),
+      status: calculateStatus(Number(item.quantity) + Number(quantity), item.minQuantity)
+    };
+
+    await updateDoc(itemRef, updatedData);
+  } catch (error) {
+    console.error("Error restocking item:", error);
+    throw error;
+  }
+};
+
+const calculateStatus = (quantity: number, minQuantity: number): InventoryItem['status'] => {
+  if (quantity <= 0) return 'out_of_stock';
+  if (quantity <= minQuantity) return 'low_stock';
+  return 'in_stock';
 };

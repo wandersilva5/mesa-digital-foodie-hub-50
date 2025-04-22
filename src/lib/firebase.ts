@@ -6,12 +6,13 @@ import { getStorage, connectStorageEmulator } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDpVYkLHDC2NV5VLu4aCrMbH2xgmAcxNjo",
-  authDomain: "food-management-app.firebaseapp.com",
-  projectId: "food-management-app",
-  storageBucket: "food-management-app.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abc123def456ghi789jkl"
+  apiKey: "AIzaSyAtharQObPEFF0dNrtfSOQTCA6tGYbbODI",
+  authDomain: "foodiehub-e3039.firebaseapp.com",
+  projectId: "foodiehub-e3039",
+  storageBucket: "foodiehub-e3039.firebasestorage.app",
+  messagingSenderId: "80788699498",
+  appId: "1:80788699498:web:f629092ff5bf437afe0d13",
+  measurementId: "G-HWG1EK3V3Y"
 };
 
 // Initialize Firebase
