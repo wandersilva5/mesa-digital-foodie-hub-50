@@ -1,18 +1,11 @@
-# Welcome to your Lovable project
+# Bem-vindo ao Projeto Mesa Digital para restaurantes e rede de lanchonetes
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/7b6405af-79d5-492a-8c4b-26abb3dd252d
 
 ## How can I edit this code?
 
 There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/7b6405af-79d5-492a-8c4b-26abb3dd252d) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
 
 **Use your preferred IDE**
 
